@@ -15,6 +15,7 @@ from strawberry_sqlalchemy.loaders import (
 pytestmark = pytest.mark.psql
 
 
+
 class Base(DeclarativeBase):  # noqa
     pass
 
