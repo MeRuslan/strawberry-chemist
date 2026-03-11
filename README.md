@@ -87,6 +87,8 @@ Run formatter and type checks:
 uv run pre-commit run --all-files
 ```
 
+Small runnable examples live in [examples/](examples/).
+
 ## Changelog
 
 Release notes live in [CHANGELOG.md](CHANGELOG.md).
