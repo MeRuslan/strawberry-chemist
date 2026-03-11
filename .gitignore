@@ -16,3 +16,5 @@ wheels/
 .pytest_cache/
 .ruff_cache/
 htmlcov/
+
+examples/**/uv.lock

@@ -6,7 +6,7 @@ import strawberry
 import strawberry_chemist as sc
 
 
-def test_top_level_exports_match_v0_2_surface() -> None:
+def test_top_level_exports_match_public_surface() -> None:
     assert hasattr(sc, "FilterContext")
     assert hasattr(sc, "OrderContext")
     assert hasattr(sc, "PaginationPolicy")

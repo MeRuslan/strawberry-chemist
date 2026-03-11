@@ -43,7 +43,7 @@ an explicit codec.
 
 Primary example:
 
-- [`examples/v0_2_api/04_nodes_and_relay_ids`](https://github.com/MeRuslan/strawberry-chemist/tree/main/examples/v0_2_api/04_nodes_and_relay_ids)
+- [`examples/04_nodes_and_relay_ids`](https://github.com/MeRuslan/strawberry-chemist/tree/main/examples/04_nodes_and_relay_ids)
 
 ## Resolver node injection
 
@@ -58,4 +58,4 @@ async def rename_post(self, info, post, title: str) -> Post:
 
 Primary example:
 
-- [`examples/v0_2_api/07_node_lookup_and_permissions`](https://github.com/MeRuslan/strawberry-chemist/tree/main/examples/v0_2_api/07_node_lookup_and_permissions)
+- [`examples/07_node_lookup_and_permissions`](https://github.com/MeRuslan/strawberry-chemist/tree/main/examples/07_node_lookup_and_permissions)

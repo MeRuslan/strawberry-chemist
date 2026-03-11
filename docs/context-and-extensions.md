@@ -26,4 +26,4 @@ schema.
 
 Primary example:
 
-- [`examples/v0_2_api/05_context_and_extensions`](https://github.com/MeRuslan/strawberry-chemist/tree/main/examples/v0_2_api/05_context_and_extensions)
+- [`examples/05_context_and_extensions`](https://github.com/MeRuslan/strawberry-chemist/tree/main/examples/05_context_and_extensions)

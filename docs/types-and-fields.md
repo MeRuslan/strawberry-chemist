@@ -47,5 +47,5 @@ class Book:
 
 Primary example:
 
-- [`examples/v0_2_api/01_types_and_fields`](https://github.com/MeRuslan/strawberry-chemist/tree/main/examples/v0_2_api/01_types_and_fields)
-- [`examples/v0_2_api/04_nodes_and_relay_ids`](https://github.com/MeRuslan/strawberry-chemist/tree/main/examples/v0_2_api/04_nodes_and_relay_ids)
+- [`examples/01_types_and_fields`](https://github.com/MeRuslan/strawberry-chemist/tree/main/examples/01_types_and_fields)
+- [`examples/04_nodes_and_relay_ids`](https://github.com/MeRuslan/strawberry-chemist/tree/main/examples/04_nodes_and_relay_ids)

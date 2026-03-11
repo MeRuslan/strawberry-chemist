@@ -9,8 +9,8 @@ if [[ -z "$example_arg" ]]; then
   exit 1
 fi
 
-if [[ -d "$repo_root/examples/v0_2_api/$example_arg" ]]; then
-  project_dir="$repo_root/examples/v0_2_api/$example_arg"
+if [[ -d "$repo_root/examples/$example_arg" ]]; then
+  project_dir="$repo_root/examples/$example_arg"
 elif [[ -d "$repo_root/$example_arg" ]]; then
   project_dir="$repo_root/$example_arg"
 else
@@ -31,7 +31,7 @@ fi
 uv "${sync_args[@]}"
 
 if [[ -f "$project_dir/test_contract.py" ]]; then
-  uv run --project "$project_dir" pytest "$project_dir/test_contract.py"
+  uv run --project "$project_dir" python -m pytest "$project_dir/test_contract.py"
 elif [[ -f "$project_dir/smoke_test.py" ]]; then
   uv run --project "$project_dir" python "$project_dir/smoke_test.py"
 else

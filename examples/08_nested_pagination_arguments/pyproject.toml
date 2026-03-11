@@ -1,5 +1,5 @@
 [project]
-name = "strawberry-chemist-example-types-and-fields"
+name = "strawberry-chemist-example-nested-pagination-arguments"
 version = "0.1.0"
 requires-python = ">=3.11,<3.13"
 dependencies = [
@@ -7,12 +7,12 @@ dependencies = [
     "pytest>=9.0.2",
     "pytest-asyncio>=1.1.0",
     "sqlalchemy>=2.0.41",
-    "strawberry-chemist==0.2.0",
-    "strawberry-graphql==0.211.1",
+    "strawberry-chemist==0.2.1",
+    "strawberry-graphql~=0.311.1",
 ]
 
 [tool.pytest.ini_options]
 asyncio_mode = "auto"
 
 [tool.uv.sources]
-strawberry-chemist = { path = "../../..", editable = true }
+strawberry-chemist = { path = "../..", editable = true }
