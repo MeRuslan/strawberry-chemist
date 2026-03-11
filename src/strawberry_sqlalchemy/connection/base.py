@@ -45,9 +45,7 @@ class SQLAlchemyBaseConnectionField(StrawberrySQLAlchemyRelationField):
     async def resolver(
         self, source, info: Info[SQLAlchemyContext, Any], *args, **kwargs
     ):
-        selections = self.pagination.get_fields_from_typed_request(
-            info.selected_fields
-        )
+        selections = self.pagination.get_fields_from_typed_request(info.selected_fields)
         # filter selections to those which has name attribute
         #  (e.g. not InlineFragment)
         # names = [s.name for s in selections if hasattr(s, 'name')]

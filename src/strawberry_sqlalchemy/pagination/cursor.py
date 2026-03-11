@@ -11,6 +11,7 @@ from strawberry_sqlalchemy.pagination.base import (
     StrawberrySQLAlchemyPaginationBase,
     GenericPaginationReturnType,
 )
+
 ABSOLUTE_MAX_LIMIT = 40
 DEFAULT_MAX_LIMIT = 20
 context_first: ContextVar[int] = ContextVar("context_first")
@@ -50,12 +51,7 @@ class RelayConnection(Generic[GenericPaginationReturnType]):
 
 
 empty_relay_connection = RelayConnection(
-    edges=[],
-    pageInfo=PageInfo(
-        startCursor="",
-        endCursor="",
-        hasNextPage=False
-    )
+    edges=[], pageInfo=PageInfo(startCursor="", endCursor="", hasNextPage=False)
 )
 
 
@@ -81,18 +77,12 @@ class StrawberrySQLAlchemyCursorPagination(StrawberrySQLAlchemyPaginationBase):
     def get_fields_from_typed_request(self, selected_fields: List[SelectedField]):
         # filter to field named edges
         edges = [
-            field
-            for field in selected_fields[0].selections
-            if field.name == "edges"
+            field for field in selected_fields[0].selections if field.name == "edges"
         ]
         if not edges:
             return []
         # filter to field named node
-        nodes = [
-            field
-            for field in edges[0].selections
-            if field.name == "node"
-        ]
+        nodes = [field for field in edges[0].selections if field.name == "node"]
         if not nodes:
             return []
         return nodes[0].selections

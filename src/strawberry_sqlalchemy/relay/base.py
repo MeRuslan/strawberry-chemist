@@ -20,14 +20,17 @@ from strawberry_sqlalchemy.relay.alphabet_manipilations import (
     LOWERCASE_CONVERSION_DATA,
     URL_CONVERSION_DATA,
 )
-from strawberry_sqlalchemy.relay.szudzik_int_bijection import elegant_pair, elegant_unpair
+from strawberry_sqlalchemy.relay.szudzik_int_bijection import (
+    elegant_pair,
+    elegant_unpair,
+)
 
 sqla_model_registry: Optional[frozenbidict] = None
 
 __magic_number = 5713747
 
 
-T = TypeVar('T')
+T = TypeVar("T")
 logger = logging.getLogger(__name__)
 
 
@@ -60,7 +63,11 @@ def node_type_to_int_bijection() -> frozenbidict:
         if hasattr(sqla_model, "__int_identity__"):
             key = sqla_model.__int_identity__
         else:
-            faulty_chars = [s for s in sqla_model.__name__.lower() if s not in LOWERCASE_CONVERSION_DATA.ALPHABET ]
+            faulty_chars = [
+                s
+                for s in sqla_model.__name__.lower()
+                if s not in LOWERCASE_CONVERSION_DATA.ALPHABET
+            ]
             if faulty_chars:
                 warnings.warn(
                     message=f"sqlalchemy type {sqla_model} has a name that "
@@ -69,7 +76,9 @@ def node_type_to_int_bijection() -> frozenbidict:
                     f" README.md#Model-names",
                     category=UserWarning,
                 )
-            key = base_alphabet_to_10(sqla_model.__name__.lower(), LOWERCASE_CONVERSION_DATA)
+            key = base_alphabet_to_10(
+                sqla_model.__name__.lower(), LOWERCASE_CONVERSION_DATA
+            )
 
         if key in bi_dict and bi_dict[key] != sqla_model:
             raise ValueError(
@@ -112,8 +121,8 @@ def parse_id(id: strawberry.ID | str) -> (Type, int):
 
 
 def parse_and_validate_id(
-        id: strawberry.ID | str,
-        model: Type,
+    id: strawberry.ID | str,
+    model: Type,
 ) -> Optional[int]:
     try:
         cls, id_ = parse_id(id)
@@ -124,7 +133,9 @@ def parse_and_validate_id(
         return None
 
 
-def compose_id_using_instance(source: Any, value: Optional[int] = None) -> strawberry.ID:
+def compose_id_using_instance(
+    source: Any, value: Optional[int] = None
+) -> strawberry.ID:
     # info.get('me')
     if value is None:
         value = source.id
@@ -157,7 +168,9 @@ def compose_id_using_class(source_type: Type, value: int) -> strawberry.ID:
 
 @strawberry.interface
 class Node:
-    id: strawberry.ID = strawberry_sqlalchemy.field(post_processor=compose_id_using_instance)
+    id: strawberry.ID = strawberry_sqlalchemy.field(
+        post_processor=compose_id_using_instance
+    )
 
 
 class _RelayNodeField(StrawberryField):
@@ -176,7 +189,11 @@ class _RelayNodeField(StrawberryField):
         return False
 
     async def get_result(
-        self, source: Any, info: Info[SQLAlchemyContext, Any], args: List[Any], kwargs: Dict[str, Any]
+        self,
+        source: Any,
+        info: Info[SQLAlchemyContext, Any],
+        args: List[Any],
+        kwargs: Dict[str, Any],
     ) -> Union[Awaitable[Any], Any]:
         id = kwargs.get("id")
         try:
@@ -208,11 +225,11 @@ class _RelayNodeField(StrawberryField):
 
 
 def get_by_id_field(
-        _func=None,
-        *,
-        allowed_models=Any,
-        strawberry_args=None,
-        id_nullable=False,
+    _func=None,
+    *,
+    allowed_models=Any,
+    strawberry_args=None,
+    id_nullable=False,
 ):
     """
     Wrapper that returns you a strawberry field that fetches a node of specified type
@@ -244,11 +261,15 @@ def get_by_id_field(
 
             return await func(self, node=node, info=info)
 
-        async def wrapper_action_on_node_nullable(self, id: Optional[strawberry.ID], info: Info):
+        async def wrapper_action_on_node_nullable(
+            self, id: Optional[strawberry.ID], info: Info
+        ):
             return await wrapper_action_on_node(self, id, info)
 
         # preserve return annotations of original function
-        func_to_wrap = wrapper_action_on_node_nullable if id_nullable else wrapper_action_on_node
+        func_to_wrap = (
+            wrapper_action_on_node_nullable if id_nullable else wrapper_action_on_node
+        )
 
         ret_ann = func.__annotations__["return"]
         func_to_wrap.__annotations__["return"] = ret_ann
@@ -269,33 +290,25 @@ class NodeEdge:
 
 
 async def maybe_get_by_node_id(
-        id_: Optional[strawberry.ID | str],
-        model: Type[T],
-        session: AsyncSession
+    id_: Optional[strawberry.ID | str], model: Type[T], session: AsyncSession
 ) -> Optional[T]:
     _id = parse_and_validate_id(id_, model=model)
     if _id is None:
         return None
     o = (
-        await session.execute(
-            select(model).where(model.id == _id)
-        )
+        await session.execute(select(model).where(model.id == _id))
     ).scalar_one_or_none()
     return o
 
 
 async def convert_and_check_exists_node_id(
-        id_: strawberry.ID,
-        model: Type,
-        session: AsyncSession
+    id_: strawberry.ID, model: Type, session: AsyncSession
 ) -> Optional[int]:
     _id = parse_and_validate_id(id_, model=model)
     if _id is None:
         return None
     ex = (
-        await session.execute(
-            exists(model).where(model.id == _id).select()
-        )
+        await session.execute(exists(model).where(model.id == _id).select())
     ).scalar_one()
     if ex:
         return _id

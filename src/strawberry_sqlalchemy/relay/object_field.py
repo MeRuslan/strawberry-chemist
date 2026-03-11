@@ -16,10 +16,10 @@ class RelayResolver(StrawberryResolver):
 
     def link_field(self, field):
         self.field = field
-        new_param = ReservedType(self.field.relay_kw['node_param_name'], self.field.relay_kw['model'])
-        self.RESERVED_PARAMSPEC = (
-            self.RESERVED_PARAMSPEC + (new_param, )
+        new_param = ReservedType(
+            self.field.relay_kw["node_param_name"], self.field.relay_kw["model"]
         )
+        self.RESERVED_PARAMSPEC = self.RESERVED_PARAMSPEC + (new_param,)
         pass
 
     # @cached_property
@@ -30,23 +30,21 @@ class RelayResolver(StrawberryResolver):
     #     return ann
 
     async def __call__(self, *args, **kwargs):
-        id = kwargs.pop(self.field.relay_kw['id_name'])
-        info = kwargs['info']
+        id = kwargs.pop(self.field.relay_kw["id_name"])
+        info = kwargs["info"]
         async with info.context.get_session() as session:
             node = await maybe_get_by_node_id(
-                id_=id, model=self.field.relay_kw['model'], session=session
+                id_=id, model=self.field.relay_kw["model"], session=session
             )
         self.field.origin = node
 
-        kwargs[self.field.relay_kw['node_param_name']] = node
+        kwargs[self.field.relay_kw["node_param_name"]] = node
 
-        for permission_class in self.field.relay_kw['post_load_permission_classes']:
+        for permission_class in self.field.relay_kw["post_load_permission_classes"]:
             permission = permission_class()
             has_permission: bool
 
-            has_permission = await (
-                permission.has_permission(node, **kwargs)
-            )
+            has_permission = await permission.has_permission(node, **kwargs)
             if has_permission:
                 continue
             message = getattr(permission, "message", None)
@@ -58,11 +56,11 @@ class RelayResolver(StrawberryResolver):
     def arguments(self) -> List[StrawberryArgument]:
         args = super(RelayResolver, self).arguments
         argument = StrawberryArgument(
-            python_name=self.field.relay_kw['id_name'],
+            python_name=self.field.relay_kw["id_name"],
             graphql_name=None,
             type_annotation=StrawberryAnnotation(
                 annotation=strawberry.ID, namespace=self._namespace
-            )
+            ),
         )
         args.append(argument)
         return args
@@ -87,8 +85,8 @@ class RelayField(StrawberryField):
 def object_field(
     resolver=None,
     *,
-    id_name: str = 'id',
-    node_param_name: str = 'node',
+    id_name: str = "id",
+    node_param_name: str = "node",
     model: Type,
     name=None,
     is_subscription=False,

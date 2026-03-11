@@ -76,15 +76,21 @@ field_type_map = {
 # }
 
 STR_SQLA_SCALAR_TYPES = Union[
-    int, float, str, bool,
-    decimal.Decimal, datetime.date, datetime.datetime, datetime.time
+    int,
+    float,
+    str,
+    bool,
+    decimal.Decimal,
+    datetime.date,
+    datetime.datetime,
+    datetime.time,
 ]
 ASSERT_ON_UNKNOWN_SQLA_TYPE = False
 
 
 def resolve_model_field_type(
-        model_field: InstrumentedAttribute,
-        container_type: "StrawberrySQLAlchemyType",
+    model_field: InstrumentedAttribute,
+    container_type: "StrawberrySQLAlchemyType",
 ) -> Optional[Type[STR_SQLA_SCALAR_TYPES]]:
     # sqlalchemy returns a concrete field type for model_field.type, thus need type(...)
     try:
@@ -96,8 +102,9 @@ def resolve_model_field_type(
         model_field_type = None
 
     if ASSERT_ON_UNKNOWN_SQLA_TYPE:
-        assert model_field_type in field_type_map.keys(), \
+        assert model_field_type in field_type_map.keys(), (
             f"field {model_field} is an unknown scalar type: {model_field_type}"
+        )
 
     # if container_type.is_filter and model_field.is_relation:
     #     field_type = filters_old.DjangoModelFilterInput
@@ -120,17 +127,17 @@ def resolve_model_field_type(
 #         return RelationshipNumber.MANY
 #     else:
 #         raise Exception("Seems like a misconfigured relationship?")
-    # if relationship_type == ONETOMANY and not model_field._reverse_property.uselist:
-    #     return RelationshipNumber.ONE
-    # # in other case, 1-to-m
-    # elif relationship_type == ONETOMANY:
-    #     return RelationshipNumber.ONE_TO_MANY
-    # elif relationship_type == MANYTOONE:
-    #     return RelationshipNumber.MANY
-    # elif relationship_type == MANYTOMANY:
-    #     return RelationshipNumber.MANY_TO_MANY
-    # else:
-    #     raise Exception("Seems like a misconfigured relationship?")
+# if relationship_type == ONETOMANY and not model_field._reverse_property.uselist:
+#     return RelationshipNumber.ONE
+# # in other case, 1-to-m
+# elif relationship_type == ONETOMANY:
+#     return RelationshipNumber.ONE_TO_MANY
+# elif relationship_type == MANYTOONE:
+#     return RelationshipNumber.MANY
+# elif relationship_type == MANYTOMANY:
+#     return RelationshipNumber.MANY_TO_MANY
+# else:
+#     raise Exception("Seems like a misconfigured relationship?")
 
 
 # def inspect_relation(

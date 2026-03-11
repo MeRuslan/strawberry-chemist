@@ -15,7 +15,7 @@ Base = declarative_base()
 
 
 class Book(Base):
-    __tablename__ = 'books'
+    __tablename__ = "books"
     id: Mapped[int] = mapped_column(Integer, primary_key=True)
     title: Mapped[str] = mapped_column(String)
 
@@ -39,17 +39,21 @@ class Query(NodeEdge):
     @strawberry.field
     async def all_books(self, info: Info[SQLAlchemyContext, Any]) -> List[BookType]:
         async with info.context.get_session() as session:
-            return (await session.execute(
-                select(Book)
-            )).scalars().all()
+            return (await session.execute(select(Book))).scalars().all()
 
     @object_field(model=Book)
-    async def book_by_id(self, node: Book, info: Info[SQLAlchemyContext, Any]) -> Optional[BookType]:
+    async def book_by_id(
+        self, node: Book, info: Info[SQLAlchemyContext, Any]
+    ) -> Optional[BookType]:
         return node
 
     @object_field(model=Book, node_permission_classes=[NoPermission])
-    async def no_permission_book_by_id(self, node: Book, info: Info[SQLAlchemyContext, Any]) -> Optional[BookType]:
+    async def no_permission_book_by_id(
+        self, node: Book, info: Info[SQLAlchemyContext, Any]
+    ) -> Optional[BookType]:
         return node
 
 
-schema = strawberry.Schema(query=Query, extensions=[DataLoadersExtension, InfoCacheExtension])
+schema = strawberry.Schema(
+    query=Query, extensions=[DataLoadersExtension, InfoCacheExtension]
+)

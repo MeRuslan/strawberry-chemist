@@ -20,7 +20,7 @@ def field(
     *,
     name=None,
     sqlalchemy_name=None,
-    **kwargs
+    **kwargs,
 ):
     field_ = SQLAlchemyRelayConnectionField(
         post_processor=post_processor,
@@ -31,7 +31,7 @@ def field(
         max_limit=max_limit,
         order=order,
         filter=filter,
-        **kwargs
+        **kwargs,
     )
 
     return field_

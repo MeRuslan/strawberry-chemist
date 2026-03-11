@@ -32,7 +32,9 @@ class StrawberrySQLAlchemyType:
     is_filter: bool
 
 
-def get_model_field(container: StrawberrySQLAlchemyType, field_name: str) -> InstrumentedAttribute:
+def get_model_field(
+    container: StrawberrySQLAlchemyType, field_name: str
+) -> InstrumentedAttribute:
     if not hasattr(container.model, field_name):
         raise AttributeError(
             f"Got error while preparing strawberry type {container.origin} at field '{field_name}'. \n"
@@ -42,8 +44,8 @@ def get_model_field(container: StrawberrySQLAlchemyType, field_name: str) -> Ins
 
 
 def enums(
-        ann: Optional[Type],
-        model_type: Optional[Type],
+    ann: Optional[Type],
+    model_type: Optional[Type],
 ):
     # ignore enums, complicated to introspect in sqlalchemy
     if model_type == enum.Enum:
@@ -51,14 +53,17 @@ def enums(
 
 
 def warn_on_type_mismatch(
-        container_type: StrawberrySQLAlchemyType,
-        model_field: InstrumentedAttribute,
-        field_annotation: StrawberryAnnotation,
-        initial_field: StrawberrySQLAlchemyField,
+    container_type: StrawberrySQLAlchemyType,
+    model_field: InstrumentedAttribute,
+    field_annotation: StrawberryAnnotation,
+    initial_field: StrawberrySQLAlchemyField,
 ):
     if utils.is_auto(field_annotation):
         return
-    if field_annotation.annotation == strawberry.ID or field_annotation.annotation == Optional[strawberry.ID]:
+    if (
+        field_annotation.annotation == strawberry.ID
+        or field_annotation.annotation == Optional[strawberry.ID]
+    ):
         # do not warn on ID
         return
 
@@ -72,7 +77,10 @@ def warn_on_type_mismatch(
     field_ann = utils.unwrap_type(field_annotation)
     if enums(field_ann.annotation, model_field_type):
         return
-    if field_ann.annotation == model_field_type or field_ann.annotation == Optional[model_field_type]:
+    if (
+        field_ann.annotation == model_field_type
+        or field_ann.annotation == Optional[model_field_type]
+    ):
         return
     # if it does not define a resolver, and does not define post processor
     #  then types better match
@@ -94,9 +102,9 @@ def warn_on_type_mismatch(
 
 
 def get_field(
-        container_type: StrawberrySQLAlchemyType,
-        field_name: str,
-        field_annotation: Optional[StrawberryAnnotation] = None
+    container_type: StrawberrySQLAlchemyType,
+    field_name: str,
+    field_annotation: Optional[StrawberryAnnotation] = None,
 ) -> StrawberryField:
     if field_annotation is None:
         field_annotation = StrawberryAnnotation(None)
@@ -108,10 +116,14 @@ def get_field(
     sqla_name = sqla_name or field_name
     model_field = get_model_field(container_type, sqla_name)
     if WARN_ON_TYPE_MISMATCH:
-        warn_on_type_mismatch(container_type, model_field, field_annotation, initial_field)
+        warn_on_type_mismatch(
+            container_type, model_field, field_annotation, initial_field
+        )
 
     if isinstance(model_field.property, RelationshipProperty):
-        field = StrawberrySQLAlchemyRelationField.from_field(initial_field, container_type)
+        field = StrawberrySQLAlchemyRelationField.from_field(
+            initial_field, container_type
+        )
         field.relationship_property = model_field.property
     elif isinstance(model_field.property, (ColumnProperty, CompositeProperty)):
         field = StrawberrySQLAlchemyField.from_field(initial_field, container_type)
@@ -235,7 +247,7 @@ def process_type(cls, model, *args, **kwargs):
         setattr(cls, field.name, field)
 
     # override is_type_of classmethod to resolve sqlalchemy types in unions and interfaces
-    if not hasattr(cls, 'is_type_of') or not cls.is_type_of:
+    if not hasattr(cls, "is_type_of") or not cls.is_type_of:
         cls.is_type_of = classmethod(is_type_of)
     strawberry.type(cls, **kwargs)
 

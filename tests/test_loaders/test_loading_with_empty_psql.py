@@ -15,7 +15,7 @@ from strawberry_sqlalchemy.loaders import (
 pytestmark = pytest.mark.psql
 
 
-class Base(DeclarativeBase): # noqa
+class Base(DeclarativeBase):  # noqa
     pass
 
 
@@ -34,7 +34,7 @@ class Child(Base):
     __tablename__ = "child"
     id: Mapped[int] = mapped_column(primary_key=True)
     child_name: Mapped[str]
-    parent: Mapped["Parent"] = relationship("Parent", back_populates='child')
+    parent: Mapped["Parent"] = relationship("Parent", back_populates="child")
 
     def __str__(self):
         return f"Child: {self.child_name}"
@@ -56,9 +56,7 @@ async def data_session(mock_psql_sqla_session):
             p3 = Parent(name="p3")
             p4 = Parent(name="p4")
             p5 = Parent(name="p5")
-            session.add_all([
-                c1, c2, p1, p2, p3, p4, p5
-            ])
+            session.add_all([c1, c2, p1, p2, p3, p4, p5])
 
     yield mock_psql_sqla_session
 
@@ -75,13 +73,20 @@ def field_and_relation():
 def strat_gen_t3(strat: Type[ChildrenLoadingStrategy]):
     @pytest.mark.asyncio
     async def test_load_children_for_one_empty_link(
-            data_session, mock_context_var, field_and_relation):
+        data_session, mock_context_var, field_and_relation
+    ):
         # fails union strat if there's no cleaning nulls up
         field_and_relation.loading_strategy = strat
-        async with data_session as session: # noqa
-            p2: Parent = (await session.execute(select(Parent).where(Parent.name == "p2"))).scalar_one()
-            p3: Parent = (await session.execute(select(Parent).where(Parent.name == "p3"))).scalar_one()
-            c2: Child = (await session.execute(select(Child).where(Child.child_name == "c2"))).scalar_one()
+        async with data_session as session:  # noqa
+            p2: Parent = (
+                await session.execute(select(Parent).where(Parent.name == "p2"))
+            ).scalar_one()
+            p3: Parent = (
+                await session.execute(select(Parent).where(Parent.name == "p3"))
+            ).scalar_one()
+            c2: Child = (
+                await session.execute(select(Child).where(Child.child_name == "c2"))
+            ).scalar_one()
         list_of_children_by_parent = await field_and_relation.__call__([p3, p2])
 
         assert len(list_of_children_by_parent) == 2
@@ -100,12 +105,17 @@ test_load_children_for_one_none_key_values = strat_gen_t3(ValuesLoadingStrategy)
 def strat_gen_t4(strat: Type[ChildrenLoadingStrategy]):
     @pytest.mark.asyncio
     async def test_load_children_empty_all(
-            data_session, mock_context_var, field_and_relation):
+        data_session, mock_context_var, field_and_relation
+    ):
         # fails values strat if there's no cleaning nulls up
         field_and_relation.loading_strategy = strat
         async with data_session as session:  # noqa
-            p4: Parent = (await session.execute(select(Parent).where(Parent.name == "p4"))).scalar_one()
-            p3: Parent = (await session.execute(select(Parent).where(Parent.name == "p3"))).scalar_one()
+            p4: Parent = (
+                await session.execute(select(Parent).where(Parent.name == "p4"))
+            ).scalar_one()
+            p3: Parent = (
+                await session.execute(select(Parent).where(Parent.name == "p3"))
+            ).scalar_one()
             # p2: Parent = (await session.execute(select(Parent).where(Parent.name == "p2"))).scalar_one()
         list_of_children_by_parent = await field_and_relation.__call__([p3, p4])
 
@@ -116,6 +126,7 @@ def strat_gen_t4(strat: Type[ChildrenLoadingStrategy]):
         assert kids_p2 is None
         # kids_p2 = list_of_children_by_parent[2]
         # assert kids_p2 is not None
+
     return test_load_children_empty_all
 
 

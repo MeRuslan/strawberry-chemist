@@ -5,12 +5,17 @@ from typing import AsyncIterator
 import pytest
 from pytest_postgresql import factories
 from pytest_postgresql.janitor import DatabaseJanitor
-from sqlalchemy.ext.asyncio import create_async_engine, async_sessionmaker, async_scoped_session, AsyncSession
+from sqlalchemy.ext.asyncio import (
+    create_async_engine,
+    async_sessionmaker,
+    async_scoped_session,
+    AsyncSession,
+)
 
 from strawberry_sqlalchemy.gql_context import SQLAlchemyContext
 
 logging.basicConfig()
-logger = logging.getLogger('custom logger')
+logger = logging.getLogger("custom logger")
 logger.setLevel(logging.DEBUG)
 
 postgresql_in_docker = factories.postgresql_noproc()
@@ -28,7 +33,9 @@ def psql_session(postgresql_in_docker):
     with DatabaseJanitor(
         pg_user, pg_host, pg_port, pg_db, postgresql_in_docker.version, pg_password
     ):
-        connection_str = f"postgresql+psycopg://{pg_user}:{pg_password}@{pg_host}:{pg_port}/{pg_db}"
+        connection_str = (
+            f"postgresql+psycopg://{pg_user}:{pg_password}@{pg_host}:{pg_port}/{pg_db}"
+        )
         engine = create_async_engine(
             connection_str,
             # echo=True
@@ -42,9 +49,11 @@ def psql_session(postgresql_in_docker):
     logger.debug("psql_session: closed")
 
 
-@pytest.fixture(scope='function')
-async def mock_psql_sqla_session(psql_session, monkeypatch) -> AsyncIterator[AsyncSession]:
+@pytest.fixture(scope="function")
+async def mock_psql_sqla_session(
+    psql_session, monkeypatch
+) -> AsyncIterator[AsyncSession]:
     with monkeypatch.context() as m:
-        m.setattr(SQLAlchemyContext, 'get_session', psql_session)
+        m.setattr(SQLAlchemyContext, "get_session", psql_session)
         async with psql_session() as session:
             yield session

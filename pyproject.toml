@@ -21,10 +21,12 @@ dev = [
     "aiosqlite>=0.21.0",
     "asyncpg>=0.30.0",
     "httpx>=0.28.1",
+    "pre-commit>=4.2.0",
     "psycopg>=3.2.9",
     "pytest>=9.0.2",
     "pytest-asyncio>=1.1.0",
     "pytest-postgresql>=7.0.2",
+    "ruff>=0.11.0",
     "starlette>=0.47.3",
 ]
 
@@ -38,3 +40,7 @@ asyncio_mode = "auto"
 markers = [
     "psql: requires PostgreSQL test dependencies and a running PostgreSQL service",
 ]
+
+[tool.ruff]
+line-length = 88
+target-version = "py311"

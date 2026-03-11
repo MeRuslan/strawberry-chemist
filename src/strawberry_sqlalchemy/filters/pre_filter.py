@@ -9,7 +9,11 @@ SQLAExpressionOrBool = Union[SQLColumnExpression, OperatorExpression, bool]
 
 
 class RuntimeFilter:
-    def __init__(self, filters: List[Callable[[], SQLAExpressionOrBool]], needs_connection: bool = False):
+    def __init__(
+        self,
+        filters: List[Callable[[], SQLAExpressionOrBool]],
+        needs_connection: bool = False,
+    ):
         self.filters: List[Callable] = filters
         self.needs_connection = needs_connection
 

@@ -16,19 +16,19 @@ class RelayExistsResolver(RelayResolver):
 
     def link_field(self, field):
         self.field = field
-        new_param = ReservedType(self.field.relay_kw['exists_result'], self.field.relay_kw['model'])
-        self.RESERVED_PARAMSPEC = (
-            self.RESERVED_PARAMSPEC + (new_param, )
+        new_param = ReservedType(
+            self.field.relay_kw["exists_result"], self.field.relay_kw["model"]
         )
+        self.RESERVED_PARAMSPEC = self.RESERVED_PARAMSPEC + (new_param,)
 
     async def __call__(self, *args, **kwargs):
-        id = kwargs.pop(self.field.relay_kw['id_name'])
-        info = kwargs['info']
+        id = kwargs.pop(self.field.relay_kw["id_name"])
+        info = kwargs["info"]
         async with info.context.get_session() as session:
             exists = await convert_and_check_exists_node_id(
-                id_=id, model=self.field.relay_kw['model'], session=session
+                id_=id, model=self.field.relay_kw["model"], session=session
             )
-        kwargs[self.field.relay_kw['exists_result']] = exists
+        kwargs[self.field.relay_kw["exists_result"]] = exists
 
         return await super(RelayResolver, self).__call__(*args, **kwargs)
 
@@ -36,11 +36,11 @@ class RelayExistsResolver(RelayResolver):
     def arguments(self) -> List[StrawberryArgument]:
         args = super(RelayResolver, self).arguments
         argument = StrawberryArgument(
-            python_name=self.field.relay_kw['id_name'],
+            python_name=self.field.relay_kw["id_name"],
             graphql_name=None,
             type_annotation=StrawberryAnnotation(
                 annotation=strawberry.ID, namespace=self._namespace
-            )
+            ),
         )
         args.append(argument)
         return args
@@ -61,8 +61,8 @@ class RelayExistsField(RelayField):
 def object_exists_field(
     resolver=None,
     *,
-    id_name: str = 'id',
-    filtered_param_name: str = 'id',
+    id_name: str = "id",
+    filtered_param_name: str = "id",
     model: Type,
     name=None,
     is_subscription=False,

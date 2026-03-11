@@ -136,13 +136,15 @@ class StrawberrySQLAlchemyOrdering(StrawberrySQLAlchemyOrderingBase):
     def sanity_check(self):
         # get field named "field" from input's fields array
         field = next(
-            (field for field in self.argument_type.__strawberry_definition__.fields if field.name == "field"),
+            (
+                field
+                for field in self.argument_type.__strawberry_definition__.fields
+                if field.name == "field"
+            ),
             None,
         )
         if not field:
-            raise ValueError(
-                "Input type must have a field named 'field' to order by"
-            )
+            raise ValueError("Input type must have a field named 'field' to order by")
         # iterate over input field possible values and check if they are in the map
         for value in field.type.values:
             if value.value not in self.input_values:

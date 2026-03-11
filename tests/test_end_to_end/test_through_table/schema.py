@@ -48,38 +48,46 @@ class Book(Base):
 class AuthorNode(Node):
     name: str
     books: List["BookNode"]
-    books_connection: RelayConnection["BookNode"] =\
-        strawberry_sqlalchemy.relay_connection_field(sqlalchemy_name='books')
+    books_connection: RelayConnection["BookNode"] = (
+        strawberry_sqlalchemy.relay_connection_field(sqlalchemy_name="books")
+    )
 
 
 @strawberry_sqlalchemy.type(model=Book)
 class BookNode(Node):
     title: str
     authors: List["AuthorNode"]
-    authors_connection: RelayConnection["AuthorNode"] =\
-        strawberry_sqlalchemy.relay_connection_field(sqlalchemy_name='authors')
+    authors_connection: RelayConnection["AuthorNode"] = (
+        strawberry_sqlalchemy.relay_connection_field(sqlalchemy_name="authors")
+    )
 
 
 @strawberry.type
 class Query(NodeEdge):
-    people_connection: RelayConnection["AuthorNode"] = strawberry_sqlalchemy.relay_connection_field()
-    books_connection: RelayConnection["BookNode"] = strawberry_sqlalchemy.relay_connection_field()
+    people_connection: RelayConnection["AuthorNode"] = (
+        strawberry_sqlalchemy.relay_connection_field()
+    )
+    books_connection: RelayConnection["BookNode"] = (
+        strawberry_sqlalchemy.relay_connection_field()
+    )
 
     @strawberry.field
     async def person_by_name(self, info: Info, name: str) -> Optional[AuthorNode]:
         async with info.context.get_session() as session:
-            person = (await session.execute(
-                select(Author).where(Author.name.like(name))
-            )).scalar_one_or_none()
+            person = (
+                await session.execute(select(Author).where(Author.name.like(name)))
+            ).scalar_one_or_none()
             return person
 
     @strawberry.field
     async def book_by_title(self, info: Info, title: str) -> Optional[BookNode]:
         async with info.context.get_session() as session:
-            book = (await session.execute(
-                select(Book).where(Book.title.like(title))
-            )).scalar_one_or_none()
+            book = (
+                await session.execute(select(Book).where(Book.title.like(title)))
+            ).scalar_one_or_none()
             return book
 
 
-schema = strawberry.Schema(query=Query, extensions=[DataLoadersExtension, InfoCacheExtension])
+schema = strawberry.Schema(
+    query=Query, extensions=[DataLoadersExtension, InfoCacheExtension]
+)

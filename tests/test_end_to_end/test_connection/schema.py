@@ -18,7 +18,7 @@ Base = declarative_base()
 
 
 class Book(Base):
-    __tablename__ = 'books'
+    __tablename__ = "books"
     id: Mapped[int] = mapped_column(Integer, primary_key=True)
     title: Mapped[str] = mapped_column(String)
     year: Mapped[int] = mapped_column(SmallInteger)
@@ -28,7 +28,7 @@ class Book(Base):
 
 
 class Person(Base):
-    __tablename__ = 'person'
+    __tablename__ = "person"
     id: Mapped[int] = mapped_column(Integer, primary_key=True)
     name: Mapped[str] = mapped_column(String)
     address: Mapped[str] = mapped_column(String, default="Baker Street 221B")
@@ -47,8 +47,8 @@ class BookNode(Node):
     year: int
     author: Optional[PersonNode]
     faulty_field: str = strawberry_sqlalchemy.field(
-        sqlalchemy_name='title',
-        post_processor=lambda source, result: f"{source.title} ({source.year})"
+        sqlalchemy_name="title",
+        post_processor=lambda source, result: f"{source.title} ({source.year})",
     )
 
 
@@ -61,8 +61,12 @@ class BookAgeFilter:
 book_year_filter = StrawberrySQLAlchemyFilter(
     input_type=BookAgeFilter,
     input_filter_map={
-        "less_than": lambda query, value: query.where(Book.year < value) if value else query,
-        "greater_than": lambda query, value: query.where(Book.year > value) if value else query,
+        "less_than": lambda query, value: (
+            query.where(Book.year < value) if value else query
+        ),
+        "greater_than": lambda query, value: (
+            query.where(Book.year > value) if value else query
+        ),
     },
 )
 
@@ -90,23 +94,31 @@ book_order = StrawberrySQLAlchemyOrdering(
 
 @strawberry.type
 class Query(NodeEdge):
-    people_connection: RelayConnection["PersonNode"] = strawberry_sqlalchemy.relay_connection_field()
-    books_connection: RelayConnection["BookNode"] = strawberry_sqlalchemy.relay_connection_field()
-
-    book_year_filter_connection: RelayConnection["BookNode"] = strawberry_sqlalchemy.relay_connection_field(
-        filter=book_year_filter
+    people_connection: RelayConnection["PersonNode"] = (
+        strawberry_sqlalchemy.relay_connection_field()
+    )
+    books_connection: RelayConnection["BookNode"] = (
+        strawberry_sqlalchemy.relay_connection_field()
     )
 
-    book_order_connection: RelayConnection["BookNode"] = strawberry_sqlalchemy.relay_connection_field(
-        order=book_order
+    book_year_filter_connection: RelayConnection["BookNode"] = (
+        strawberry_sqlalchemy.relay_connection_field(filter=book_year_filter)
+    )
+
+    book_order_connection: RelayConnection["BookNode"] = (
+        strawberry_sqlalchemy.relay_connection_field(order=book_order)
     )
 
     @strawberry.field
-    async def person_by_name(self, info: Info[SQLAlchemyContext, Any], name: str) -> Optional[PersonNode]:
+    async def person_by_name(
+        self, info: Info[SQLAlchemyContext, Any], name: str
+    ) -> Optional[PersonNode]:
         async with info.context.get_session() as session:
-            return (await session.execute(
-                select(Person).where(Person.name.like(name))
-            )).scalar_one_or_none()
+            return (
+                await session.execute(select(Person).where(Person.name.like(name)))
+            ).scalar_one_or_none()
 
 
-schema = strawberry.Schema(query=Query, extensions=[DataLoadersExtension, InfoCacheExtension])
+schema = strawberry.Schema(
+    query=Query, extensions=[DataLoadersExtension, InfoCacheExtension]
+)

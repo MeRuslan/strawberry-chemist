@@ -21,8 +21,7 @@ except ModuleNotFoundError as exc:
 
     def _skip_psql_fixture():
         pytest.skip(
-            "PostgreSQL test dependencies are unavailable: "
-            f"{_PSQL_IMPORT_ERROR.name}"
+            f"PostgreSQL test dependencies are unavailable: {_PSQL_IMPORT_ERROR.name}"
         )
 
     @pytest.fixture(scope="function")
@@ -51,6 +50,6 @@ def pytest_addoption(parser):
     parser.addoption(
         "--dburl",
         action="store",
-        default='sqlite+aiosqlite:///:memory:',
+        default="sqlite+aiosqlite:///:memory:",
         help="Database URL for testing",
     )

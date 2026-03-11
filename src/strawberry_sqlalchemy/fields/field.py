@@ -19,7 +19,7 @@ from strawberry_sqlalchemy.gql_context import SQLAlchemyContext, context_var
 
 def camel_case(s: str):
     s = sub(r"(_|-)+", " ", s).title().replace(" ", "")
-    return ''.join([s[0].lower(), s[1:]])
+    return "".join([s[0].lower(), s[1:]])
 
 
 class StrawberrySQLAlchemyField(StrawberryField):
@@ -98,9 +98,7 @@ class StrawberrySQLAlchemyField(StrawberryField):
             result = self.post_processor(source, result)
         return result
 
-    def resolver(
-        self, source, info: Info[SQLAlchemyContext, Any], *args, **kwargs
-    ):
+    def resolver(self, source, info: Info[SQLAlchemyContext, Any], *args, **kwargs):
         assert source is not None, (
             f"Raw StrawberrySQLAlchemyField should not be a root."
             f"You can use some sort of a connection for that."
@@ -113,13 +111,16 @@ class StrawberrySQLAlchemyRelationField(StrawberrySQLAlchemyField):
     A field that resolves to a SQLAlchemy model.
     Useful for relations, dds pre_filter argument, which will filter the relationship for you.
     """
+
     load_simple_fields_from_sqlalchemy = True
 
-    def __init__(self,
-                 pre_filter: Optional[RuntimeFilter] = None,
-                 needs_fields=None,
-                 ignore_field_selections=False,
-                 **kwargs):
+    def __init__(
+        self,
+        pre_filter: Optional[RuntimeFilter] = None,
+        needs_fields=None,
+        ignore_field_selections=False,
+        **kwargs,
+    ):
         self.pre_filter = pre_filter
         # very important field, it's set in type generation
         self.relationship_property = None
@@ -166,14 +167,18 @@ class StrawberrySQLAlchemyRelationField(StrawberrySQLAlchemyField):
             f"Make sure it's a StrawberrySQLAlchemy type. Or use ignore_field_selections=True."
         )
 
-        fields: List[StrawberryField] = self.primary_type.__strawberry_definition__.fields
+        fields: List[StrawberryField] = (
+            self.primary_type.__strawberry_definition__.fields
+        )
         sqla_field_map = {
-            f.graphql_name if f.graphql_name else camel_case(f.name): f for f in fields
+            f.graphql_name if f.graphql_name else camel_case(f.name): f
+            for f in fields
             if isinstance(f, StrawberrySQLAlchemyField)
         }
         if self.load_simple_fields_from_sqlalchemy:
             simple_fields = {
-                f.graphql_name if f.graphql_name else camel_case(f.name): f for f in fields
+                f.graphql_name if f.graphql_name else camel_case(f.name): f
+                for f in fields
                 if f.is_basic_field
             }
             sqla_field_map.update(simple_fields)
@@ -214,11 +219,11 @@ class StrawberrySQLAlchemyRelationField(StrawberrySQLAlchemyField):
         # always load the related model through dataloader
         # make sure info is not duplicated
         kwargs = kwargs or {}
-        kwargs['info'] = info
+        kwargs["info"] = info
         result = await self.resolver(source, *args, **kwargs)
         # if there was a base resolver, use it
         if self.base_resolver:
-            kwargs['root'] = result  # put fetched value into kwargs as root
+            kwargs["root"] = result  # put fetched value into kwargs as root
             res = super().get_result(result, info, args, kwargs)
             if is_awaitable(res):
                 return await res
@@ -300,6 +305,7 @@ def relation_field(
     if resolver:
         return field_(resolver)
     return field_
+
 
 # ditched as it's unusable, needs refactoring of base class
 # def exists_relation_field(

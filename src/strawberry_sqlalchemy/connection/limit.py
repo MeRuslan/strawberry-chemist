@@ -19,7 +19,7 @@ def field(post_processor=None, *, name=None, sqlalchemy_name=None, **kwargs):
         graphql_name=name,
         type_annotation=None,
         sqlalchemy_name=sqlalchemy_name,
-        **kwargs
+        **kwargs,
     )
 
     return field_

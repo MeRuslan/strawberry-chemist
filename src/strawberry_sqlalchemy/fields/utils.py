@@ -4,9 +4,7 @@ from strawberry.types.nodes import SelectedField, InlineFragment, FragmentSpread
 
 
 def drill_for_field_names(
-        selections: List[Union[
-            SelectedField, InlineFragment, FragmentSpread
-        ]]
+    selections: List[Union[SelectedField, InlineFragment, FragmentSpread]],
 ) -> Iterable[str]:
     # TODO: parse type conditions
     #  to load efficiently interfaced types, e.g. inheritances

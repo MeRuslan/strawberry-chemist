@@ -34,6 +34,7 @@ def test_type_mismatch():
         pass
 
     with pytest.warns(UserWarning, match=r"type mismatch .*'str_field'"):
+
         class Class5(Base):
             __tablename__ = "class5"
             int_field: Mapped[int] = mapped_column(primary_key=True)
@@ -103,6 +104,7 @@ def test_auto_nested_raises():
         pass
 
     with pytest.raises(NotImplementedError):
+
         class Class4(Base):
             __tablename__ = "class4"
             int_field: Mapped[int] = mapped_column(primary_key=True)
@@ -132,6 +134,7 @@ def test_auto_array_raises():
         pass
 
     with pytest.raises(NotImplementedError):
+
         class Class4(Base):
             __tablename__ = "class4"
             int_field: Mapped[int] = mapped_column(primary_key=True)
