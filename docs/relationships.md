@@ -3,6 +3,17 @@
 Use `sc.relationship(...)` when you want a related field to stay relationship
 aware and selection-aware.
 
+Chemist-managed relationship fields are loaded through the package dataloader
+stack, so they do not degrade into one SQL query per parent object.
+
+The API is intentionally flexible enough to cover:
+
+- direct related fields
+- renamed relationships
+- server-scoped relationships
+- relationship-backed computed fields
+- full-row loading when a computation needs it
+
 ## Simple relationship
 
 ```python
@@ -40,6 +51,10 @@ def publication_labels(self, books: list["Book"]) -> list[str]:
 
 Use `load="full"` when the computation needs full related rows instead of only
 selected columns.
+
+If clients need filtering, ordering, or pagination on a related collection,
+switch from `sc.relationship(...)` to `sc.connection(...)` on that same
+relationship source.
 
 Primary example:
 

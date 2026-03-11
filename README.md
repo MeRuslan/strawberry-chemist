@@ -8,6 +8,10 @@ want clients to see. That makes the DTO layer visible, keeps the public
 contract adaptable, and fits production codebases that care about query shape,
 permissions, loading behavior, and long-term schema maintenance.
 
+That explicitness does not mean giving up performance. Chemist-managed
+relationship and connection fields are selection-aware and dataloader-backed, so
+you can keep explicit DTOs without falling into per-parent N+1 loading.
+
 Chemist focuses on the parts that are repetitive and SQLAlchemy-aware:
 
 - field mapping and renaming
@@ -16,6 +20,15 @@ Chemist focuses on the parts that are repetitive and SQLAlchemy-aware:
 - filtering, ordering, and pagination
 - relay IDs and node lookup
 - dataloaders and selection-aware loading
+
+Relationships and connections are also deliberately flexible. They can be:
+
+- plain mapped fields
+- renamed fields
+- server-scoped fields
+- relationship-backed computed fields
+- root collections
+- relationship-backed collections with filtering, ordering, and pagination
 
 ## Installation
 

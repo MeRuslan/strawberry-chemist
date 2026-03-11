@@ -9,12 +9,26 @@ querying is allowed. The package focuses on reducing boilerplate around that
 work, not hiding it. That makes the public contract easier to reason about,
 easier to adapt over time, and easier to keep production-safe.
 
+That does not come at the cost of naive loading. Chemist-managed relationship
+and connection fields are selection-aware and dataloader-backed, so explicit
+DTOs do not force per-parent N+1 behavior.
+
 The design center is:
 
 - explicit Strawberry classes stay
 - SQLAlchemy stays first-class
 - connections, filters, ordering, relay IDs, and dataloading stay practical
 - unusual production cases still have escape hatches
+
+In practice, relationship and connection fields are meant to be flexible enough
+for real applications:
+
+- simple related fields
+- renamed relationship fields
+- server-scoped relationship fields
+- relationship-backed computed fields
+- root collections
+- nested collections with filtering, ordering, and pagination
 
 ## Quick example
 
@@ -56,7 +70,8 @@ schema = strawberry.Schema(query=Query, extensions=sc.extensions())
 
 - mapping explicit Strawberry types to SQLAlchemy models
 - renaming and computing fields without losing visibility into the schema
-- loading related data with selection-aware dataloading
+- loading related data with selection-aware dataloading instead of per-parent
+  N+1 queries
 - exposing root and nested collections through a unified connection API
 - adding filter, order, pagination, and relay/node behavior without giving up
   control of the GraphQL contract

@@ -9,13 +9,22 @@ The pattern is consistent across the surface:
 - the package stays adaptable by exposing escape hatches where real production
   schemas need them
 
+Two practical properties are worth calling out:
+
+- Chemist-managed relationship and connection fields are batched through
+  dataloaders and selection-aware SQL shaping, so they avoid per-parent N+1
+  loading.
+- Relationship and connection APIs are intentionally broad enough to cover
+  plain mapped fields, renamed fields, scoped fields, computed fields, root
+  collections, and nested collections.
+
 ## Surface overview
 
 | Area | Main entrypoints | Purpose | Example |
 | --- | --- | --- | --- |
 | Types and mapped fields | `@sc.type`, `@sc.node`, `sc.attr`, `@sc.field` | Define explicit GraphQL DTOs and computed fields | [`01_types_and_fields`](https://github.com/MeRuslan/strawberry-chemist/tree/main/examples/v0_2_api/01_types_and_fields) |
-| Relationships | `sc.relationship` / `@sc.relationship` | Expose related data or relationship-backed computed fields | [`02_relationships`](https://github.com/MeRuslan/strawberry-chemist/tree/main/examples/v0_2_api/02_relationships) |
-| Connections | `sc.connection`, `sc.Connection`, `sc.OffsetConnection` | Expose queryable collections at root or on relationships | [`03_connections_filters_and_ordering`](https://github.com/MeRuslan/strawberry-chemist/tree/main/examples/v0_2_api/03_connections_filters_and_ordering) |
+| Relationships | `sc.relationship` / `@sc.relationship` | Expose related data or relationship-backed computed fields without N+1 boilerplate | [`02_relationships`](https://github.com/MeRuslan/strawberry-chemist/tree/main/examples/v0_2_api/02_relationships) |
+| Connections | `sc.connection`, `sc.Connection`, `sc.OffsetConnection` | Expose queryable collections at root or on relationships with batched loading | [`03_connections_filters_and_ordering`](https://github.com/MeRuslan/strawberry-chemist/tree/main/examples/v0_2_api/03_connections_filters_and_ordering) |
 | Pagination | `sc.CursorPagination`, `sc.OffsetPagination`, `sc.PaginationPolicy` | Choose flat or nested pagination argument styles and result envelopes | [`08_nested_pagination_arguments`](https://github.com/MeRuslan/strawberry-chemist/tree/main/examples/v0_2_api/08_nested_pagination_arguments) |
 | Filters | `@sc.filter`, `sc.FilterSet`, `sc.filter_field`, `sc.manual_filter` | Add client-controlled filtering with declarative or manual contracts | [`03_connections_filters_and_ordering`](https://github.com/MeRuslan/strawberry-chemist/tree/main/examples/v0_2_api/03_connections_filters_and_ordering), [`06_manual_filters_and_orders`](https://github.com/MeRuslan/strawberry-chemist/tree/main/examples/v0_2_api/06_manual_filters_and_orders) |
 | Ordering | `@sc.order`, `sc.order_field`, `sc.manual_order` | Add client-controlled ordering with declarative or manual contracts | [`03_connections_filters_and_ordering`](https://github.com/MeRuslan/strawberry-chemist/tree/main/examples/v0_2_api/03_connections_filters_and_ordering), [`06_manual_filters_and_orders`](https://github.com/MeRuslan/strawberry-chemist/tree/main/examples/v0_2_api/06_manual_filters_and_orders) |
@@ -26,8 +35,10 @@ The pattern is consistent across the surface:
 ## Practical rule of thumb
 
 - use `@sc.type` and `@sc.node` to define the schema you want clients to see
-- use `sc.relationship(...)` for related data
+- use `sc.relationship(...)` for related data and relationship-backed computed
+  fields
 - use `sc.connection(...)` when clients need filtering, ordering, or pagination
+  on root or nested collections
 - use the declarative DSLs first
 - use `manual_filter` and `manual_order` when the GraphQL input shape itself
   must stay custom

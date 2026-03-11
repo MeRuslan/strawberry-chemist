@@ -3,6 +3,18 @@
 `sc.connection(...)` is the collection field entrypoint for both root fields and
 relationship-backed collections.
 
+Like relationship fields, Chemist-managed connection fields are selection-aware
+and dataloader-backed. The point is to let you expose rich root and nested
+collections without hand-building anti-N+1 plumbing.
+
+Connections are also intentionally flexible. The same API covers:
+
+- root collections
+- relationship-backed collections
+- filter and order arguments
+- flat pagination arguments
+- nested `pagination:` input objects for compatibility-sensitive schemas
+
 ## Root connection
 
 ```python
