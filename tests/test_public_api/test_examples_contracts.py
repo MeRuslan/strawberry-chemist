@@ -10,7 +10,7 @@ from strawberry_chemist.relay.public import clear_node_registry
 
 
 ROOT = Path(__file__).resolve().parents[2]
-EXAMPLES_ROOT = ROOT / "examples" / "v0_2_api"
+EXAMPLES_ROOT = ROOT / "examples"
 
 
 def load_example_app(example_name: str):
@@ -27,7 +27,7 @@ def load_example_app(example_name: str):
 
 
 @pytest.mark.asyncio
-async def test_v0_2_types_and_fields_contract() -> None:
+async def test_public_types_and_fields_contract() -> None:
     app = load_example_app("01_types_and_fields")
     engine, session_factory = app.create_engine_and_sessionmaker()
     await app.prepare_database(engine)
@@ -73,7 +73,7 @@ async def test_v0_2_types_and_fields_contract() -> None:
 
 
 @pytest.mark.asyncio
-async def test_v0_2_relationships_contract() -> None:
+async def test_public_relationships_contract() -> None:
     app = load_example_app("02_relationships")
     engine, session_factory = app.create_engine_and_sessionmaker()
     await app.prepare_database(engine)
@@ -138,7 +138,7 @@ async def test_v0_2_relationships_contract() -> None:
 
 
 @pytest.mark.asyncio
-async def test_v0_2_connections_filters_and_ordering_contract() -> None:
+async def test_public_connections_filters_and_ordering_contract() -> None:
     app = load_example_app("03_connections_filters_and_ordering")
     engine, session_factory = app.create_engine_and_sessionmaker()
     await app.prepare_database(engine)
@@ -228,7 +228,7 @@ async def test_v0_2_connections_filters_and_ordering_contract() -> None:
 
 
 @pytest.mark.asyncio
-async def test_v0_2_nodes_and_relay_ids_contract() -> None:
+async def test_public_nodes_and_relay_ids_contract() -> None:
     app = load_example_app("04_nodes_and_relay_ids")
     engine, session_factory = app.create_engine_and_sessionmaker()
     await app.prepare_database(engine)
@@ -286,7 +286,7 @@ async def test_v0_2_nodes_and_relay_ids_contract() -> None:
 
 
 @pytest.mark.asyncio
-async def test_v0_2_context_and_extensions_contract() -> None:
+async def test_public_context_and_extensions_contract() -> None:
     app = load_example_app("05_context_and_extensions")
     engine, session_factory = app.create_engine_and_sessionmaker()
     await app.prepare_database(engine)
@@ -344,7 +344,7 @@ async def test_v0_2_context_and_extensions_contract() -> None:
 
 
 @pytest.mark.asyncio
-async def test_v0_2_manual_filters_and_orders_contract() -> None:
+async def test_public_manual_filters_and_orders_contract() -> None:
     app = load_example_app("06_manual_filters_and_orders")
     schema = app.build_schema()
     sdl = schema.as_str()
@@ -395,7 +395,7 @@ async def test_v0_2_manual_filters_and_orders_contract() -> None:
 
 
 @pytest.mark.asyncio
-async def test_v0_2_node_lookup_and_permissions_contract() -> None:
+async def test_public_node_lookup_and_permissions_contract() -> None:
     app = load_example_app("07_node_lookup_and_permissions")
     schema = app.build_schema()
     sdl = schema.as_str()
@@ -486,7 +486,7 @@ async def test_v0_2_node_lookup_and_permissions_contract() -> None:
 
 
 @pytest.mark.asyncio
-async def test_v0_2_nested_pagination_arguments_contract() -> None:
+async def test_public_nested_pagination_arguments_contract() -> None:
     app = load_example_app("08_nested_pagination_arguments")
     engine, session_factory = app.create_engine_and_sessionmaker()
     await app.prepare_database(engine)

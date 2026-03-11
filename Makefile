@@ -5,21 +5,24 @@ HOST ?= 127.0.0.1
 PORT ?= 8000
 REQUEST_ID ?= dev-request
 CURRENT_USER_ID ?=
-EXAMPLES := $(shell find examples/v0_2_api -mindepth 1 -maxdepth 1 -type d -exec basename {} \; | sort)
+EXAMPLES := $(shell find examples -mindepth 1 -maxdepth 1 -type d -name '[0-9][0-9]_*' -exec basename {} \; | sort)
 
-.PHONY: help test mypy check sample-test sample-test-published samples-test \
-	samples-test-published sample-schema sample-serve
+.PHONY: help test mypy check \
+	example-test example-test-published examples-test examples-test-published \
+	example-schema example-serve \
+	sample-test sample-test-published samples-test samples-test-published \
+	sample-schema sample-serve
 
 help:
 	@echo "make test"
 	@echo "make mypy"
 	@echo "make check"
-	@echo "make sample-test EXAMPLE=03_connections_filters_and_ordering"
-	@echo "make sample-test-published EXAMPLE=03_connections_filters_and_ordering"
-	@echo "make samples-test"
-	@echo "make samples-test-published"
-	@echo "make sample-schema EXAMPLE=03_connections_filters_and_ordering"
-	@echo "make sample-serve EXAMPLE=03_connections_filters_and_ordering PORT=8000"
+	@echo "make example-test EXAMPLE=03_connections_filters_and_ordering"
+	@echo "make example-test-published EXAMPLE=03_connections_filters_and_ordering"
+	@echo "make examples-test"
+	@echo "make examples-test-published"
+	@echo "make example-schema EXAMPLE=03_connections_filters_and_ordering"
+	@echo "make example-serve EXAMPLE=03_connections_filters_and_ordering PORT=8000"
 
 test:
 	uv run pytest
@@ -29,28 +32,28 @@ mypy:
 
 check: test mypy
 
-sample-test:
+example-test:
 	scripts/run-example-local "$(EXAMPLE)"
 
-sample-test-published:
+example-test-published:
 	scripts/run-example-published "$(EXAMPLE)"
 
-samples-test:
+examples-test:
 	@set -e; for example in $(EXAMPLES); do \
 		echo "==> $$example"; \
 		scripts/run-example-local "$$example"; \
 	done
 
-samples-test-published:
+examples-test-published:
 	@set -e; for example in $(EXAMPLES); do \
 		echo "==> $$example"; \
 		scripts/run-example-published "$$example"; \
 	done
 
-sample-schema:
+example-schema:
 	uv run python scripts/example_schema.py print "$(EXAMPLE)"
 
-sample-serve:
+example-serve:
 	uv run python scripts/example_schema.py serve "$(EXAMPLE)" \
 		--host "$(HOST)" \
 		--port "$(PORT)" \

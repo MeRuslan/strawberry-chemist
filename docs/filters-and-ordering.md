@@ -52,5 +52,5 @@ application own the public `filter:` and `order:` contracts exactly.
 
 Primary examples:
 
-- [`examples/v0_2_api/03_connections_filters_and_ordering`](https://github.com/MeRuslan/strawberry-chemist/tree/main/examples/v0_2_api/03_connections_filters_and_ordering)
-- [`examples/v0_2_api/06_manual_filters_and_orders`](https://github.com/MeRuslan/strawberry-chemist/tree/main/examples/v0_2_api/06_manual_filters_and_orders)
+- [`examples/03_connections_filters_and_ordering`](https://github.com/MeRuslan/strawberry-chemist/tree/main/examples/03_connections_filters_and_ordering)
+- [`examples/06_manual_filters_and_orders`](https://github.com/MeRuslan/strawberry-chemist/tree/main/examples/06_manual_filters_and_orders)

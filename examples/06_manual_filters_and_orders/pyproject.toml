@@ -15,4 +15,4 @@ dependencies = [
 asyncio_mode = "auto"
 
 [tool.uv.sources]
-strawberry-chemist = { path = "../../..", editable = true }
+strawberry-chemist = { path = "../..", editable = true }

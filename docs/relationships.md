@@ -58,4 +58,4 @@ relationship source.
 
 Primary example:
 
-- [`examples/v0_2_api/02_relationships`](https://github.com/MeRuslan/strawberry-chemist/tree/main/examples/v0_2_api/02_relationships)
+- [`examples/02_relationships`](https://github.com/MeRuslan/strawberry-chemist/tree/main/examples/02_relationships)

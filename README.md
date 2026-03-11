@@ -106,27 +106,27 @@ Serve a seeded sample schema locally:
 
 ```bash
 uv sync --group dev
-make sample-serve EXAMPLE=03_connections_filters_and_ordering PORT=8000
+make example-serve EXAMPLE=03_connections_filters_and_ordering PORT=8000
 ```
 
-The contract examples tests under `examples/v0_2_api/` can run in two modes.
+The contract examples tests under `examples/` can run in two modes.
 
 Against the current checkout:
 
 ```bash
-make sample-test EXAMPLE=03_connections_filters_and_ordering
+make example-test EXAMPLE=03_connections_filters_and_ordering
 ```
 
 Against the pinned published package:
 
 ```bash
-make sample-test-published EXAMPLE=03_connections_filters_and_ordering
+make example-test-published EXAMPLE=03_connections_filters_and_ordering
 ```
 
 Print a sample schema:
 
 ```bash
-make sample-schema EXAMPLE=03_connections_filters_and_ordering
+make example-schema EXAMPLE=03_connections_filters_and_ordering
 ```
 
 If you want to force published-mode testing against a locally built

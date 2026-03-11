@@ -24,8 +24,8 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
 - Relay/node redesign with inferred mapper primary keys, readable default IDs,
   `sc.node_field()`, and `sc.node_lookup(...)`.
 - Public pagination policy surface with flat and nested argument styles.
-- Runnable `v0_2_api` contract examples, public docs under `docs/`, and GitHub
-  Pages-ready MkDocs configuration.
+- Runnable public API contract examples under `examples/`, public docs under
+  `docs/`, and GitHub Pages-ready MkDocs configuration.
 
 ### Changed
 

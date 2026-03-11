@@ -1,5 +1,5 @@
 [project]
-name = "strawberry-chemist-example-connections-filters-ordering"
+name = "strawberry-chemist-example-node-lookup-and-permissions"
 version = "0.1.0"
 requires-python = ">=3.11,<3.13"
 dependencies = [
@@ -15,4 +15,4 @@ dependencies = [
 asyncio_mode = "auto"
 
 [tool.uv.sources]
-strawberry-chemist = { path = "../../..", editable = true }
+strawberry-chemist = { path = "../..", editable = true }

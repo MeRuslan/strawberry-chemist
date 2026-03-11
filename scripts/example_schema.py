@@ -16,7 +16,7 @@ from strawberry_chemist.relay.public import clear_node_registry
 
 
 ROOT = Path(__file__).resolve().parents[1]
-EXAMPLES_ROOT = ROOT / "examples" / "v0_2_api"
+EXAMPLES_ROOT = ROOT / "examples"
 
 
 class ExampleGraphQL(GraphQL):

@@ -1,7 +1,7 @@
-# 0.2.1 API contract examples
+# Public API Examples
 
-These examples are standalone consumer projects for the `strawberry-chemist`
-`0.2.1` public API.
+These examples are standalone consumer projects for the current
+`strawberry-chemist` public API.
 
 Each example:
 
@@ -11,7 +11,7 @@ Each example:
 - uses real SQLAlchemy models backed by SQLite via `aiosqlite`
 
 Their contracts are also exercised from the root package test suite in
-`tests/test_public_api/test_v0_2_contracts.py`.
+`tests/test_public_api/test_examples_contracts.py`.
 
 ## Coverage map
 
@@ -33,34 +33,34 @@ Each example can be verified in three ways.
 From the repo root, run the root acceptance suite:
 
 ```bash
-uv run pytest -q tests/test_public_api/test_v0_2_contracts.py
+uv run pytest -q tests/test_public_api/test_examples_contracts.py
 ```
 
 To run an example in isolation against the current checkout:
 
 ```bash
 scripts/run-example-local 01_types_and_fields
-make sample-test EXAMPLE=01_types_and_fields
+make example-test EXAMPLE=01_types_and_fields
 ```
 
 To run an example against the pinned published package instead of the checkout:
 
 ```bash
 scripts/run-example-published 01_types_and_fields
-make sample-test-published EXAMPLE=01_types_and_fields
+make example-test-published EXAMPLE=01_types_and_fields
 ```
 
 To print an example schema:
 
 ```bash
-make sample-schema EXAMPLE=01_types_and_fields
+make example-schema EXAMPLE=01_types_and_fields
 ```
 
 To serve a seeded example schema locally:
 
 ```bash
 uv sync --group dev
-make sample-serve EXAMPLE=01_types_and_fields PORT=8000
+make example-serve EXAMPLE=01_types_and_fields PORT=8000
 ```
 
 To run published-mode against a locally built distribution artifact:
