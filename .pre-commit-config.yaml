@@ -8,6 +8,6 @@ repos:
         types_or: [python, pyi]
       - id: mypy
         name: mypy
-        entry: uv run mypy src/strawberry_sqlalchemy
+        entry: uv run mypy
         language: system
         pass_filenames: false
