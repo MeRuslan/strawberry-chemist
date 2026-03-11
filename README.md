@@ -36,11 +36,6 @@ Relationships and connections are also deliberately flexible. They can be:
 pip install strawberry-chemist
 ```
 
-Supported Python versions:
-
-- `3.11`
-- `3.12`
-
 ## Quick example
 
 ```python
@@ -107,18 +102,31 @@ uv run mkdocs build --strict
 
 ## Runnable examples
 
-The contract examples under `examples/v0_2_api/` can run in two modes.
+Serve a seeded sample schema locally:
+
+```bash
+uv sync --group dev
+make sample-serve EXAMPLE=03_connections_filters_and_ordering PORT=8000
+```
+
+The contract examples tests under `examples/v0_2_api/` can run in two modes.
 
 Against the current checkout:
 
 ```bash
-scripts/run-example-local 03_connections_filters_and_ordering
+make sample-test EXAMPLE=03_connections_filters_and_ordering
 ```
 
 Against the pinned published package:
 
 ```bash
-scripts/run-example-published 03_connections_filters_and_ordering
+make sample-test-published EXAMPLE=03_connections_filters_and_ordering
+```
+
+Print a sample schema:
+
+```bash
+make sample-schema EXAMPLE=03_connections_filters_and_ordering
 ```
 
 If you want to force published-mode testing against a locally built
@@ -146,10 +154,11 @@ example reference in [docs/examples.md](docs/examples.md).
 
 ## Development
 
-Run the default non-Postgres test suite:
+Run the default non-Postgres test suite with either:
 
 ```bash
 uv run pytest
+make test
 ```
 
 Run formatting and type checks:
@@ -157,6 +166,8 @@ Run formatting and type checks:
 ```bash
 uv run pre-commit run --all-files
 uv run mypy
+make mypy
+make check
 ```
 
 Release notes live in [CHANGELOG.md](CHANGELOG.md). Current limitations are
