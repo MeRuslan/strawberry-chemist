@@ -33,6 +33,12 @@ dependencies = [
     "strawberry-graphql==0.211.1",
 ]
 
+[project.urls]
+Homepage = "https://github.com/MeRuslan/strawberry-chemist"
+Repository = "https://github.com/MeRuslan/strawberry-chemist"
+Issues = "https://github.com/MeRuslan/strawberry-chemist/issues"
+Changelog = "https://github.com/MeRuslan/strawberry-chemist/blob/main/CHANGELOG.md"
+
 [dependency-groups]
 dev = [
     "aiosqlite>=0.21.0",
