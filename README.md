@@ -87,6 +87,10 @@ Run formatter and type checks:
 uv run pre-commit run --all-files
 ```
 
+## Changelog
+
+Release notes live in [CHANGELOG.md](CHANGELOG.md).
+
 ## Limitations
 
 Current behavioral constraints and relay ID caveats are documented in
