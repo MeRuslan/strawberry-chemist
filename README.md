@@ -1,10 +1,21 @@
 # strawberry-chemist
 
+Explicit GraphQL types. Smart SQLAlchemy loading.
+
+- mapped fields
+- computed fields
+- scoped relationships
+- queryable connections
+- filters and ordering
+- relay IDs
+- node lookup
+- selection-aware dataloading
+
 `strawberry-chemist` helps expose SQLAlchemy models through Strawberry without
 turning your GraphQL schema into generated magic.
 
 The package is intentionally explicit. You still write the Strawberry types you
-want clients to see. That makes the DTO layer visible, keeps the public
+want clients to see. That keeps the DTO layer visible, keeps the public
 contract adaptable, and fits production codebases that care about query shape,
 permissions, loading behavior, and long-term schema maintenance.
 
@@ -12,65 +23,62 @@ That explicitness does not mean giving up performance. Chemist-managed
 relationship and connection fields are selection-aware and dataloader-backed, so
 you can keep explicit DTOs without falling into per-parent N+1 loading.
 
-Chemist focuses on the parts that are repetitive and SQLAlchemy-aware:
-
-- field mapping and renaming
-- relationship loading
-- root and nested connections
-- filtering, ordering, and pagination
-- relay IDs and node lookup
-- dataloaders and selection-aware loading
-
-Relationships and connections are also deliberately flexible. They can be:
-
-- plain mapped fields
-- renamed fields
-- server-scoped fields
-- relationship-backed computed fields
-- root collections
-- relationship-backed collections with filtering, ordering, and pagination
-
 ## Installation
 
 ```bash
 pip install strawberry-chemist
 ```
 
-## Quick example
+## What It Looks Like
+
+Computed field from selected columns:
 
 ```python
-import strawberry
 import strawberry_chemist as sc
 
 
-@sc.node(model=BookModel)
+@sc.type(model=BookModel)
 class Book:
-    title: str
-    published_year: int = sc.attr("year")
+    @sc.field(select=["title", "isbn"])
+    def title_with_isbn(self, title: str, isbn: str) -> str:
+        return f"{title} ({isbn})"
+```
+
+Queryable relationship-backed connection:
+
+```python
+import strawberry_chemist as sc
 
 
-@sc.filter(model=BookModel)
-class BookFilter(sc.FilterSet):
-    title: sc.StringFilter = sc.filter_field()
-
-
-@sc.order(model=BookModel)
-class BookOrder:
-    published_year = sc.order_field(path="year")
-
-
-@strawberry.type
-class Query:
-    node = sc.node_field()
+@sc.type(model=AuthorModel)
+class Author:
     books: sc.Connection[Book] = sc.connection(
+        source="books",
         filter=BookFilter,
         order=BookOrder,
         pagination=sc.CursorPagination(max_limit=20),
     )
-
-
-schema = strawberry.Schema(query=Query, extensions=sc.extensions())
 ```
+
+Server-scoped relationship-backed field:
+
+```python
+import strawberry_chemist as sc
+from strawberry_chemist.gql_context import context_var
+
+
+@sc.type(model=BookModel)
+class Book:
+    @sc.relationship(
+        "bookmarks",
+        where=lambda: BookmarkModel.user_id == context_var.get().current_user_id,
+        select=["id"],
+    )
+    def is_bookmarked(self, bookmarks: list[BookmarkModel]) -> bool:
+        return bool(bookmarks)
+```
+Note: current_user_id is up to you to implement,
+the package doesn't ship auth.
 
 Your GraphQL context must provide a `get_session()` async context manager that
 returns a SQLAlchemy `AsyncSession`.

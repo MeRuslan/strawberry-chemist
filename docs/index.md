@@ -1,5 +1,16 @@
 # strawberry-chemist
 
+Explicit GraphQL types. Smart SQLAlchemy loading, no N+1 anywhere.
+
+- mapped fields
+- computed fields
+- scoped relationships
+- queryable connections
+- filters and ordering
+- relay IDs
+- node lookup
+- selection-aware dataloading
+
 `strawberry-chemist` is a Strawberry + SQLAlchemy integration for applications
 that want explicit GraphQL types instead of whole-schema autogeneration.
 
@@ -13,68 +24,54 @@ That does not come at the cost of naive loading. Chemist-managed relationship
 and connection fields are selection-aware and dataloader-backed, so explicit
 DTOs do not force per-parent N+1 behavior.
 
-The design center is:
+## What It Looks Like
 
-- explicit Strawberry classes stay
-- SQLAlchemy stays first-class
-- connections, filters, ordering, relay IDs, and dataloading stay practical
-- unusual production cases still have escape hatches
-
-In practice, relationship and connection fields are meant to be flexible enough
-for real applications:
-
-- simple related fields
-- renamed relationship fields
-- server-scoped relationship fields
-- relationship-backed computed fields
-- root collections
-- nested collections with filtering, ordering, and pagination
-
-## Quick example
+Server-scoped relationship-backed field:
 
 ```python
-import strawberry
+import strawberry_chemist as sc
+from strawberry_chemist.gql_context import context_var
+
+
+@sc.type(model=BookModel)
+class Book:
+    @sc.relationship(
+        "bookmarks",
+        where=lambda: BookmarkModel.user_id == context_var.get().current_user_id,
+        select=["id"],
+    )
+    def is_bookmarked(self, bookmarks: list[BookmarkModel]) -> bool:
+        return bool(bookmarks)
+```
+
+Computed field from selected columns:
+
+```python
 import strawberry_chemist as sc
 
 
-@sc.node(model=BookModel)
+@sc.type(model=BookModel)
 class Book:
-    title: str
-    published_year: int = sc.attr("year")
+    @sc.field(select=["title", "isbn"])
+    def title_with_isbn(self, title: str, isbn: str) -> str:
+        return f"{title} ({isbn})"
+```
+
+Queryable relationship-backed connection:
+
+```python
+import strawberry_chemist as sc
 
 
-@sc.filter(model=BookModel)
-class BookFilter(sc.FilterSet):
-    title: sc.StringFilter = sc.filter_field()
-
-
-@sc.order(model=BookModel)
-class BookOrder:
-    published_year = sc.order_field(path="year")
-
-
-@strawberry.type
-class Query:
-    node = sc.node_field()
+@sc.type(model=AuthorModel)
+class Author:
     books: sc.Connection[Book] = sc.connection(
+        source="books",
         filter=BookFilter,
         order=BookOrder,
         pagination=sc.CursorPagination(max_limit=20),
     )
-
-
-schema = strawberry.Schema(query=Query, extensions=sc.extensions())
 ```
-
-## What the package helps with
-
-- mapping explicit Strawberry types to SQLAlchemy models
-- renaming and computing fields without losing visibility into the schema
-- loading related data with selection-aware dataloading instead of per-parent
-  N+1 queries
-- exposing root and nested collections through a unified connection API
-- adding filter, order, pagination, and relay/node behavior without giving up
-  control of the GraphQL contract
 
 ## Where to go next
 
