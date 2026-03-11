@@ -11,4 +11,4 @@ It covers:
 - one `sc.connection(...)` entrypoint for both cursor and offset pagination
 
 The contract tests assume a GraphQL surface with `filter:` and `orderBy:`
-arguments and explicit pagination policy objects.
+arguments, using the default flat pagination argument shape.
