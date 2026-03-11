@@ -9,7 +9,7 @@ from sqlalchemy import asc, desc, nullsfirst, nullslast
 from sqlalchemy.sql import Select
 from strawberry import UNSET
 from strawberry.annotation import StrawberryAnnotation
-from strawberry.arguments import StrawberryArgument
+from strawberry.types.arguments import StrawberryArgument
 
 from strawberry_chemist.querying import (
     QueryBuildContext,

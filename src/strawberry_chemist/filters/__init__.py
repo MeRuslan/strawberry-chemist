@@ -11,7 +11,7 @@ from sqlalchemy import and_, not_, or_
 from sqlalchemy.sql import Select
 from strawberry import UNSET
 from strawberry.annotation import StrawberryAnnotation
-from strawberry.arguments import StrawberryArgument
+from strawberry.types.arguments import StrawberryArgument
 
 from strawberry_chemist.querying import (
     QueryBuildContext,

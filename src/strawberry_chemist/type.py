@@ -13,8 +13,8 @@ from sqlalchemy.orm import (
 )
 from strawberry import auto
 from strawberry.annotation import StrawberryAnnotation
-from strawberry.field import StrawberryField
-from strawberry.object_type import _wrap_dataclass
+from strawberry.types.field import StrawberryField
+from strawberry.types.object_type import _process_type, _wrap_dataclass
 
 from . import utils
 from .fields.field import StrawberrySQLAlchemyField, StrawberrySQLAlchemyRelationField
@@ -121,11 +121,13 @@ def get_field(
         field_annotation = StrawberryAnnotation(None)
     initial_field = utils.get_type_attr(container_type.origin, field_name)
     if not isinstance(initial_field, StrawberryField):
-        initial_field = StrawberrySQLAlchemyField(
+        wrapped_field = StrawberrySQLAlchemyField(
             python_name=field_name,
             graphql_name=None,
             type_annotation=field_annotation,
         )
+        wrapped_field._field_type = getattr(initial_field, "_field_type", None)
+        initial_field = wrapped_field
 
     # Every connection, custom relation, proper annotation will fall here
     #   since they are properly defined fields in schema.
@@ -199,12 +201,20 @@ def get_field(
 
 
 def get_annotations(cls):
+    namespace = utils.get_annotation_namespace(cls)
     annotations = {}
     for c in reversed(cls.__mro__):
-        if "__annotations__" in c.__dict__:
+        class_annotations = getattr(c, "__annotations__", None)
+        if class_annotations:
             annotations.update(
-                {k: StrawberryAnnotation(v) for k, v in c.__annotations__.items()}
+                {
+                    k: StrawberryAnnotation.from_annotation(v, namespace=namespace)
+                    for k, v in class_annotations.items()
+                }
             )
+            for field_name, annotation in annotations.items():
+                if annotation and annotation.namespace is None:
+                    annotation.namespace = namespace
     return annotations
 
 
@@ -272,6 +282,7 @@ def process_type(cls, model, *args, **kwargs):
     # update annotations and fields
     cls.__annotations__ = cls_annotations = {}
     for field in fields:
+        field_name = field.python_name or field.name
         annotation = (
             field.type
             if field.type_annotation is None
@@ -279,13 +290,15 @@ def process_type(cls, model, *args, **kwargs):
         )
         if annotation is None:
             annotation = StrawberryAnnotation(auto)
-        cls_annotations[field.name] = annotation
-        setattr(cls, field.name, field)
+        cls_annotations[field_name] = annotation
+        setattr(cls, field_name, field)
+        if field_name in getattr(cls, "__dataclass_fields__", {}):
+            cls.__dataclass_fields__[field_name] = field
 
     # override is_type_of classmethod to resolve sqlalchemy types in unions and interfaces
     if not hasattr(cls, "is_type_of") or not cls.is_type_of:
         cls.is_type_of = classmethod(is_type_of)
-    strawberry.type(cls, **kwargs)
+    _process_type(cls, original_type_annotations={}, **kwargs)
 
     # restore original annotations for further use
     cls.__annotations__ = original_annotations

@@ -6,7 +6,7 @@ import strawberry
 from sqlalchemy import func, select
 from sqlalchemy.sql import Select
 from strawberry.annotation import StrawberryAnnotation
-from strawberry.arguments import StrawberryArgument
+from strawberry.types.arguments import StrawberryArgument
 from strawberry.types.nodes import SelectedField
 
 from strawberry_chemist.pagination.base import GenericPaginationReturnType

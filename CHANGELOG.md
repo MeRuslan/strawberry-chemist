@@ -4,6 +4,15 @@ All notable changes to this project will be documented in this file.
 
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
 
+## [0.2.1] - 2026-03-11
+
+### Changed
+
+- Upgraded `strawberry-graphql` to the `0.311.x` line and updated the package
+  internals for compatibility with current Strawberry releases.
+- Expanded tested Python support to `3.11` through `3.14` and added a GitHub
+  Actions pytest matrix for those versions.
+
 ## [0.2.0] - 2026-03-11
 
 ### Added
@@ -51,5 +60,6 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
 - Made non-Postgres tests the default pytest selection.
 - Moved Postgres-only tests under the `psql` marker.
 
+[0.2.1]: https://github.com/MeRuslan/strawberry-chemist/releases/tag/0.2.1
 [0.2.0]: https://github.com/MeRuslan/strawberry-chemist/releases/tag/0.2.0
 [0.1.0]: https://github.com/MeRuslan/strawberry-chemist/releases/tag/0.1.0
