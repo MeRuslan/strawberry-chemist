@@ -390,8 +390,8 @@ class RelationshipLoader(LoadViaParents, Callable):
 
     def filtered_ordered_query(self):
         query = select(self.relationship_property.mapper)
-        if self.field.pre_filter:
-            for f in self.field.pre_filter.eval():
+        if self.field.where:
+            for f in self.field.where:
                 query = query.filter(f)
         elif self.relationship_property and self.relationship_property.order_by:
             query = query.order_by(*self.relationship_property.order_by)
@@ -436,8 +436,8 @@ class ConnectionLoader(LoadViaParents, Callable):
         # form target model query
         query = select(model)
 
-        if self.connection.pre_filter:
-            for f in self.connection.pre_filter.eval(connection_loader=self):
+        if self.connection.where:
+            for f in self.connection.where:
                 query = query.filter(f)
         # order using user input or defaults provided by relationship/connection.
         if self.order_input:

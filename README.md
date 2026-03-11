@@ -1,5 +1,7 @@
 # strawberry-chemist
 
+[Docs Site](https://meruslan.github.io/strawberry-chemist/) | [Docs Source](docs/index.md) | [Getting Started](docs/getting-started.md) | [Examples](docs/examples.md)
+
 Explicit GraphQL types. Smart SQLAlchemy loading.
 
 - mapped fields
@@ -85,8 +87,9 @@ returns a SQLAlchemy `AsyncSession`.
 
 ## Public docs
 
-The public docs live in [docs/](docs/). The published site is intended for
-GitHub Pages and is built with MkDocs.
+The public docs live in [docs/](docs/). The published site is
+[meruslan.github.io/strawberry-chemist](https://meruslan.github.io/strawberry-chemist/)
+and is built with MkDocs.
 
 Useful entrypoints:
 
@@ -194,5 +197,4 @@ make mypy
 make check
 ```
 
-Release notes live in [CHANGELOG.md](CHANGELOG.md). Current limitations are
-documented in [LIMITATIONS.md](LIMITATIONS.md).
+Release notes live in [CHANGELOG.md](CHANGELOG.md).

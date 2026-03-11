@@ -167,11 +167,11 @@ def build_node_id_field(
         ids=resolved_ids,
         codec=codec or DEFAULT_ID_CODEC,
     )
-    return field(
-        sqlalchemy_name=resolved_ids[0],
-        additional_parent_fields=resolved_ids[1:],
-        post_processor=lambda source, _result: compose_node_id(source, definition),
-    )
+
+    def resolve_node_id(root) -> strawberry.ID:
+        return compose_node_id(root, definition)
+
+    return field(resolve_node_id, select=resolved_ids)
 
 
 def register_node_type(

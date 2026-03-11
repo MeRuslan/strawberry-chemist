@@ -5,17 +5,15 @@ from typing import Optional
 from strawberry import UNSET
 
 from strawberry_chemist.connection.base import SQLAlchemyBaseConnectionField
-from strawberry_chemist.filters.pre_filter import RuntimeFilter
+from strawberry_chemist.fields.field import _reject_legacy_kwargs
 from strawberry_chemist.pagination import CursorPagination
 
 
 def _normalize_where_clause(where):
     if where is None:
-        return None
-    if isinstance(where, RuntimeFilter):
-        return where
+        return ()
     filters = where if isinstance(where, list) else [where]
-    return RuntimeFilter(filters)
+    return tuple(filters)
 
 
 def _resolve_filter(filter_definition):
@@ -31,11 +29,20 @@ def _resolve_order(order_definition):
 
 
 class SQLAlchemyConnectionField(SQLAlchemyBaseConnectionField):
-    def __init__(self, *, pagination=None, filter=None, order=None, **kwargs):
+    def __init__(
+        self,
+        *,
+        pagination=None,
+        filter=None,
+        order=None,
+        default_order_by=None,
+        **kwargs,
+    ):
         self.pagination = pagination or CursorPagination()
         super().__init__(
             order=_resolve_order(order),
             filter=_resolve_filter(filter),
+            default_order_by=default_order_by,
             **kwargs,
         )
 
@@ -46,18 +53,32 @@ def connection(
     where=None,
     filter=None,
     order=None,
+    default_order_by=None,
     pagination=None,
     name=None,
-    sqlalchemy_name=None,
     default=UNSET,
     **kwargs,
 ):
+    _reject_legacy_kwargs(
+        "connection",
+        kwargs,
+        unsupported=(
+            "sqlalchemy_name",
+            "pre_filter",
+            "needs_fields",
+            "ignore_field_selections",
+            "post_processor",
+            "additional_parent_fields",
+            "load",
+        ),
+    )
     return SQLAlchemyConnectionField(
         python_name=None,
         graphql_name=name,
         type_annotation=None,
-        sqlalchemy_name=sqlalchemy_name or source,
-        pre_filter=_normalize_where_clause(where),
+        sqlalchemy_name=source,
+        where=_normalize_where_clause(where),
+        default_order_by=default_order_by,
         pagination=pagination,
         filter=filter,
         order=order,

@@ -48,6 +48,7 @@ def test_schema_exposes_filter_and_order_arguments() -> None:
     assert "books(" in sdl
     assert "filter: BookFilter" in sdl
     assert "orderBy: [BookOrderItem!]" in sdl
+    assert "rankedBooks(" in sdl
     assert "booksPage(" in sdl
 
 
@@ -132,6 +133,35 @@ async def test_offset_connection_supports_null_ordering_and_total_count(
                 {"title": "The Lord of the Rings", "ranking": 10},
             ],
             "totalCount": 3,
+        }
+    }
+
+
+async def test_connection_where_and_default_order_by_can_define_server_owned_order(
+    env: ExampleEnv,
+) -> None:
+    data = await execute_ok(
+        env,
+        """
+        query {
+          rankedBooks(first: 10) {
+            edges {
+              node {
+                title
+                ranking
+              }
+            }
+          }
+        }
+        """,
+    )
+
+    assert data == {
+        "rankedBooks": {
+            "edges": [
+                {"node": {"title": "The Lord of the Rings", "ranking": 10}},
+                {"node": {"title": "The Hobbit", "ranking": 8}},
+            ]
         }
     }
 

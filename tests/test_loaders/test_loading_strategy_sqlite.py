@@ -12,7 +12,6 @@ from sqlalchemy.orm import (
 )
 
 from strawberry_chemist import relationship as chemist_relationship
-from strawberry_chemist.filters.pre_filter import RuntimeFilter
 from strawberry_chemist.loaders import (
     UnionLoadingStrategy,
     LoadViaParents,
@@ -97,8 +96,7 @@ async def data_session(mock_sqlite_sqla_session):
 
 @pytest.fixture
 def field_and_relation(mock_sqlite_sqla_session):
-    field = chemist_relationship()
-    field.load_full = True
+    field = chemist_relationship(load="full")
     field.relationship_property = OneOrManyThrough.children.prop
     rel_load = RelationshipLoader(
         relationship_property=OneOrManyThrough.children.prop, field=field
@@ -203,9 +201,17 @@ async def test_load_children_for_many_using_loader(
 
 
 @pytest.mark.asyncio
-async def test_load_children_for_many_using_loader_with_pre_filter(
-    data_session, mock_context_var, field_and_relation, monkeypatch
+async def test_load_children_for_many_using_loader_with_where_clause(
+    data_session, mock_context_var
 ):
+    field = chemist_relationship(
+        load="full",
+        where=lambda: ManyThrough.child_name.like("A2"),
+    )
+    field.relationship_property = OneOrManyThrough.children.prop
+    rel_load = RelationshipLoader(
+        relationship_property=OneOrManyThrough.children.prop, field=field
+    )
     async with data_session as session:  # noqa need the same code in psql tests
         alice: OneOrManyThrough = (
             await session.execute(
@@ -217,17 +223,7 @@ async def test_load_children_for_many_using_loader_with_pre_filter(
                 select(OneOrManyThrough).where(OneOrManyThrough.name == "Victor")
             )
         ).scalar_one()
-    with monkeypatch.context() as m:
-        m.setattr(
-            field_and_relation.field,
-            "pre_filter",
-            RuntimeFilter(
-                filters=[
-                    lambda: ManyThrough.child_name.like("A2"),
-                ]
-            ),
-        )
-        list_of_children_by_parent = await field_and_relation.__call__([alice, victor])
+    list_of_children_by_parent = await rel_load.__call__([alice, victor])
 
     assert len(list_of_children_by_parent) == 2
     kids = list_of_children_by_parent[0]

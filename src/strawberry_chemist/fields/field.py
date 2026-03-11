@@ -1,6 +1,6 @@
 from functools import cached_property
 from re import sub
-from typing import Any, List, Dict, Optional, Iterable
+from typing import Any, Callable, Dict, Iterable, List, Optional, Sequence
 
 from graphql.pyutils import is_awaitable
 from sqlalchemy import inspect
@@ -13,13 +13,29 @@ from strawberry.types import Info
 
 from strawberry_chemist import utils
 from strawberry_chemist.fields.utils import drill_for_field_names
-from strawberry_chemist.filters.pre_filter import RuntimeFilter
 from strawberry_chemist.gql_context import SQLAlchemyContext, context_var
 
 
 def camel_case(s: str):
     s = sub(r"(_|-)+", " ", s).title().replace(" ", "")
     return "".join([s[0].lower(), s[1:]])
+
+
+def _reject_legacy_kwargs(
+    public_name: str,
+    kwargs: Dict[str, Any],
+    *,
+    unsupported: Sequence[str],
+) -> None:
+    rejected = [name for name in unsupported if name in kwargs]
+    if not rejected:
+        return
+    if len(rejected) == 1:
+        raise TypeError(
+            f"{public_name}() got an unexpected keyword argument '{rejected[0]}'"
+        )
+    joined = ", ".join(sorted(rejected))
+    raise TypeError(f"{public_name}() got unexpected keyword arguments: {joined}")
 
 
 class StrawberrySQLAlchemyField(StrawberryField):
@@ -34,18 +50,14 @@ class StrawberrySQLAlchemyField(StrawberryField):
 
     def __init__(
         self,
-        post_processor=None,
         sqlalchemy_name=None,
-        additional_parent_fields: Iterable[str] = None,
         select: Iterable[str] = None,
         graphql_name=None,
         python_name=None,
         **kwargs,
     ):
         self.sqlalchemy_name = sqlalchemy_name
-        self.post_processor = post_processor
         self.origin_container_type = None
-        self.needs_p_fields = additional_parent_fields
         self.select_fields = tuple(select or ())
         super().__init__(graphql_name=graphql_name, python_name=python_name, **kwargs)
 
@@ -53,10 +65,7 @@ class StrawberrySQLAlchemyField(StrawberryField):
     def needs_parent_fields(self) -> List[str]:
         if self.select_fields:
             return list(self.select_fields)
-        l_f = [self.sqlalchemy_name]
-        if self.needs_p_fields:
-            l_f = l_f + list(self.needs_p_fields)
-        return [field_name for field_name in l_f if field_name]
+        return [field_name for field_name in [self.sqlalchemy_name] if field_name]
 
     @property
     def is_optional(self):
@@ -168,9 +177,6 @@ class StrawberrySQLAlchemyField(StrawberryField):
             kwargs = self.inject_resolver_kwargs(source, kwargs)
             return super().get_result(source, info, args, kwargs)
         result = self.resolver(source, info, *args, **kwargs)
-
-        if self.post_processor:
-            result = self.post_processor(source, result)
         return result
 
     def resolver(self, source, info: Info[SQLAlchemyContext, Any], *args, **kwargs):
@@ -184,24 +190,23 @@ class StrawberrySQLAlchemyField(StrawberryField):
 class StrawberrySQLAlchemyRelationField(StrawberrySQLAlchemyField):
     """
     A field that resolves to a SQLAlchemy model.
-    Useful for relations, dds pre_filter argument, which will filter the relationship for you.
+    Useful for relationship-backed fields that need dataloader-backed loading.
     """
 
     load_simple_fields_from_sqlalchemy = True
 
     def __init__(
         self,
-        pre_filter: Optional[RuntimeFilter] = None,
-        needs_fields=None,
-        ignore_field_selections=False,
+        where: Optional[Sequence[Callable[[], Any]]] = None,
+        relationship_select: Optional[Iterable[str]] = None,
+        load_full: bool = False,
         **kwargs,
     ):
-        self.pre_filter = pre_filter
+        self.where = tuple(where or ())
         # very important field, it's set in type generation
         self.relationship_property = None
-        self.needs_fields = needs_fields or []
-        self.load_full = ignore_field_selections
-        self.default_order_by = kwargs.pop("default_order_by", None)
+        self.relationship_select = tuple(relationship_select or ())
+        self.load_full = load_full
         super().__init__(**kwargs)
 
     @cached_property
@@ -210,9 +215,6 @@ class StrawberrySQLAlchemyRelationField(StrawberrySQLAlchemyField):
         result = []
         for key in self.relationship_property.local_columns:
             result.append(key.name)
-        # result.extend(super().needs_parent_fields)
-        if self.needs_p_fields:
-            result.extend(self.needs_p_fields)
         return result
 
     @cached_property
@@ -239,7 +241,7 @@ class StrawberrySQLAlchemyRelationField(StrawberrySQLAlchemyField):
     def type_field_map(self) -> Dict[str, StrawberrySQLAlchemyField]:
         assert hasattr(self.primary_type, "__strawberry_definition__"), (
             f"Type {self.primary_type} has no __strawberry_definition__ attribute."
-            f"Make sure it's a StrawberrySQLAlchemy type. Or use ignore_field_selections=True."
+            f"Make sure it's a StrawberrySQLAlchemy type. Or use load='full'."
         )
 
         fields: List[StrawberryField] = (
@@ -276,7 +278,7 @@ class StrawberrySQLAlchemyRelationField(StrawberrySQLAlchemyField):
                 fields_requested.update(self.type_field_map[field].needs_parent_fields)
             elif self.type_field_map[field].is_basic_field:
                 fields_requested.add(self.type_field_map[field].python_name)
-        fields_requested.update(self.needs_fields)
+        fields_requested.update(self.relationship_select)
         selections = [
             getattr(self.sqlalchemy_model, field_iter)
             for field_iter in fields_requested
@@ -316,8 +318,6 @@ class StrawberrySQLAlchemyRelationField(StrawberrySQLAlchemyField):
             if is_awaitable(res):
                 return await res
             return res
-        if self.post_processor:
-            result = self.post_processor(source, result)
         return result
 
     async def resolver(
@@ -341,23 +341,22 @@ class StrawberrySQLAlchemyRelationField(StrawberrySQLAlchemyField):
 
 def field(
     resolver=None,
-    post_processor=None,
-    additional_parent_fields=None,
     select=None,
     *,
     name=None,
-    sqlalchemy_name=None,
     default=UNSET,
     **kwargs,
 ):
+    _reject_legacy_kwargs(
+        "field",
+        kwargs,
+        unsupported=("post_processor", "additional_parent_fields", "sqlalchemy_name"),
+    )
     # TODO: fix default, it doesn't work
     field_ = StrawberrySQLAlchemyField(
-        post_processor=post_processor,
         python_name=None,
         graphql_name=name,
         type_annotation=None,
-        sqlalchemy_name=sqlalchemy_name,
-        additional_parent_fields=additional_parent_fields,
         select=select,
         default=default,
         **kwargs,
@@ -386,11 +385,9 @@ def attr(
 
 def _normalize_where_clause(where):
     if where is None:
-        return None
-    if isinstance(where, RuntimeFilter):
-        return where
+        return ()
     filters = where if isinstance(where, list) else [where]
-    return RuntimeFilter(filters)
+    return tuple(filters)
 
 
 def relationship(
@@ -401,33 +398,37 @@ def relationship(
     where=None,
     select=None,
     load: str = "selected",
-    post_processor=None,
-    pre_filter=None,
-    needs_fields=None,
-    ignore_field_selections=None,
     name=None,
-    sqlalchemy_name=None,
     default=UNSET,
     **kwargs,
 ):
+    _reject_legacy_kwargs(
+        "relationship",
+        kwargs,
+        unsupported=(
+            "post_processor",
+            "pre_filter",
+            "needs_fields",
+            "ignore_field_selections",
+            "sqlalchemy_name",
+            "default_order_by",
+        ),
+    )
     if isinstance(resolver, str):
         source = resolver
         resolver = None
+    if load not in {"selected", "full"}:
+        raise ValueError("relationship() load must be either 'selected' or 'full'")
 
     field_ = StrawberrySQLAlchemyRelationField(
-        post_processor=post_processor,
-        pre_filter=pre_filter or _normalize_where_clause(where),
+        where=_normalize_where_clause(where),
         python_name=None,
         graphql_name=name,
         type_annotation=None,
-        sqlalchemy_name=sqlalchemy_name or source,
+        sqlalchemy_name=source,
         default=default,
-        needs_fields=needs_fields or select,
-        ignore_field_selections=(
-            ignore_field_selections
-            if ignore_field_selections is not None
-            else load == "full"
-        ),
+        relationship_select=select,
+        load_full=load == "full",
         **kwargs,
     )
     if resolver:

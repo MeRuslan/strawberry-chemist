@@ -62,6 +62,14 @@ class Query:
         order=BookOrder,
         pagination=sc.CursorPagination(max_limit=20),
     )
+    ranked_books: sc.Connection[Book] = sc.connection(
+        where=[
+            lambda: BookModel.visible.is_(True),
+            lambda: BookModel.ranking.is_not(None),
+        ],
+        default_order_by=(BookModel.ranking.desc(), BookModel.title.asc()),
+        pagination=sc.CursorPagination(max_limit=20),
+    )
     books_page: sc.OffsetConnection[Book] = sc.connection(
         where=lambda: BookModel.visible.is_(True),
         filter=BookFilter,

@@ -41,10 +41,10 @@ class BookNode:
     title: str
     year: int
     author: Optional[PersonNode]
-    faulty_field: str = strawberry_chemist.field(
-        sqlalchemy_name="title",
-        post_processor=lambda source, result: f"{source.title} ({source.year})",
-    )
+
+    @strawberry_chemist.field(select=["title"])
+    def faulty_field(self, title: str) -> str:
+        return f"{title} ({self.year})"
 
 
 @strawberry.input

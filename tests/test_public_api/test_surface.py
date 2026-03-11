@@ -1,4 +1,5 @@
 import importlib
+import inspect
 
 import pytest
 import strawberry
@@ -78,3 +79,53 @@ def test_cursor_pagination_can_expose_nested_argument_shape() -> None:
 
     assert "books(pagination: CursorPaginationInput)" in sdl
     assert "books(first:" not in sdl
+
+
+def test_builder_signatures_match_documented_surface() -> None:
+    field_params = inspect.signature(sc.field).parameters
+    relationship_params = inspect.signature(sc.relationship).parameters
+    connection_params = inspect.signature(sc.connection).parameters
+
+    assert "select" in field_params
+    assert "sqlalchemy_name" not in field_params
+    assert "post_processor" not in field_params
+    assert "additional_parent_fields" not in field_params
+
+    assert "where" in relationship_params
+    assert "select" in relationship_params
+    assert "load" in relationship_params
+    assert "sqlalchemy_name" not in relationship_params
+    assert "pre_filter" not in relationship_params
+    assert "needs_fields" not in relationship_params
+    assert "ignore_field_selections" not in relationship_params
+
+    assert "where" in connection_params
+    assert "default_order_by" in connection_params
+    assert "sqlalchemy_name" not in connection_params
+
+
+def test_builders_reject_removed_legacy_kwargs() -> None:
+    with pytest.raises(TypeError, match="post_processor"):
+        sc.field(post_processor=lambda source, result: result)
+
+    with pytest.raises(TypeError, match="sqlalchemy_name"):
+        sc.field(sqlalchemy_name="title")
+
+    with pytest.raises(TypeError, match="pre_filter"):
+        sc.relationship("books", pre_filter=())
+
+    with pytest.raises(TypeError, match="sqlalchemy_name"):
+        sc.relationship("books", sqlalchemy_name="books")
+
+    with pytest.raises(TypeError, match="sqlalchemy_name"):
+        sc.connection(sqlalchemy_name="books")
+
+
+def test_connection_accepts_where_and_default_order_by() -> None:
+    field = sc.connection(
+        where=lambda: True,
+        default_order_by=("title",),
+    )
+
+    assert field.where
+    assert field.default_order_by == ("title",)

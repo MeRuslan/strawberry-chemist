@@ -93,16 +93,13 @@ def warn_on_type_mismatch(
         or field_ann.annotation == Optional[model_field_type]
     ):
         return
-    # if it does not define a resolver, and does not define post processor
-    #  then types better match
-    is_str_sqla = isinstance(initial_field, StrawberrySQLAlchemyField)
+    # resolver-backed fields intentionally decouple model-column typing from the
+    # GraphQL field annotation, so they should not warn here.
     is_str_f = isinstance(initial_field, StrawberryField)
 
     be_warned = True
-    # do not warn when there are base_resolver / post_processor
+    # do not warn when there is a resolver
     if is_str_f and initial_field.base_resolver:
-        be_warned = False
-    if be_warned and is_str_sqla and initial_field.post_processor:
         be_warned = False
 
     if be_warned:

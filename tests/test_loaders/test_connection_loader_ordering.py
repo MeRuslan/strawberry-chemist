@@ -35,7 +35,7 @@ class DummyConnection:
     def __init__(self, model, default_order_by: Optional[Sequence] = None):
         self.sqlalchemy_model = model
         self.default_order_by = default_order_by
-        self.pre_filter = None
+        self.where = ()
         self.order = None
         self.filter = None
         self.pagination = DummyPagination()

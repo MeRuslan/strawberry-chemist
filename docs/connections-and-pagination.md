@@ -11,6 +11,8 @@ Connections are also intentionally flexible. The same API covers:
 
 - root collections
 - relationship-backed collections
+- server-scoped collections with `where=...`
+- server-owned default ordering with `default_order_by=...`
 - filter and order arguments
 - flat pagination arguments
 - nested `pagination:` input objects for compatibility-sensitive schemas
@@ -38,6 +40,34 @@ class Author:
         order=BookOrder,
     )
 ```
+
+## Scoped connection
+
+```python
+@strawberry.type
+class Query:
+    visible_books: sc.Connection[Book] = sc.connection(
+        where=lambda: BookModel.visible.is_(True),
+    )
+```
+
+`where=` applies server-owned SQLAlchemy predicates before any client-provided
+filter or ordering inputs.
+
+## Default server ordering
+
+```python
+@strawberry.type
+class Query:
+    ranked_books: sc.Connection[Book] = sc.connection(
+        where=lambda: BookModel.visible.is_(True),
+        default_order_by=(BookModel.ranking.desc(), BookModel.title.asc()),
+    )
+```
+
+Use `default_order_by=` when a connection should have a stable server-owned
+sort even when no `order=` argument is exposed or when the client does not pass
+`orderBy:`.
 
 ## Pagination policies
 

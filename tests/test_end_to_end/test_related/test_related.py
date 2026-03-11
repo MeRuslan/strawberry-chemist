@@ -238,7 +238,9 @@ async def test_field_with_resolver_func(relay_with_authors_books, test_relay_cli
 
 
 @pytest.mark.asyncio
-async def test_relation_with_needs_fields(relay_with_authors_books, test_relay_client):
+async def test_relationship_select_loads_only_required_fields(
+    relay_with_authors_books, test_relay_client
+):
     author_name = tolkien.name
     years = [book.year for book in tolkien.books]
 
@@ -249,7 +251,7 @@ async def test_relation_with_needs_fields(relay_with_authors_books, test_relay_c
 
 
 @pytest.mark.asyncio
-async def test_relation_with_ignore_field_selections_positive(
+async def test_relationship_load_full_allows_full_row_transforms(
     relay_with_authors_books, test_relay_client
 ):
     author_name = tolkien.name

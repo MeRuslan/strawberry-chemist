@@ -24,9 +24,10 @@ class SQLAlchemyBaseConnectionField(StrawberrySQLAlchemyRelationField):
     order: OrderDefinition = None
     filter: FilterDefinition = None
 
-    def __init__(self, order=None, filter=None, **kwargs):
+    def __init__(self, order=None, filter=None, default_order_by=None, **kwargs):
         self.order = order
         self.filter = filter
+        self.default_order_by = default_order_by
         self.relationship_property = None
         super().__init__(**kwargs)
 

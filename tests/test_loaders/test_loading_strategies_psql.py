@@ -12,7 +12,6 @@ from sqlalchemy.orm import (
 )
 
 from strawberry_chemist import relationship as chemist_relationship
-from strawberry_chemist.filters.pre_filter import RuntimeFilter
 from strawberry_chemist.loaders import (
     UnionLoadingStrategy,
     LoadViaParents,
@@ -97,8 +96,7 @@ async def data_session(mock_psql_sqla_session):
 
 @pytest.fixture
 def field_and_relation():
-    field = chemist_relationship()
-    field.load_full = True
+    field = chemist_relationship(load="full")
     field.relationship_property = Parent.children.prop
     rel_load = RelationshipLoader(
         relationship_property=Parent.children.prop, field=field
@@ -211,10 +209,18 @@ test_load_children_for_many_using_loader_values = strat_gen_t2(ValuesLoadingStra
 
 def strat_gen_t3(strat: Type[ChildrenLoadingStrategy]):
     @pytest.mark.asyncio
-    async def test_load_children_for_many_using_loader_with_pre_filter(
-        data_session, mock_context_var, field_and_relation, monkeypatch
+    async def test_load_children_for_many_using_loader_with_where_clause(
+        data_session, mock_context_var
     ):
-        field_and_relation.loading_strategy = strat
+        field = chemist_relationship(
+            load="full",
+            where=lambda: Child.child_name.like("A2"),
+        )
+        field.relationship_property = Parent.children.prop
+        rel_load = RelationshipLoader(
+            relationship_property=Parent.children.prop, field=field
+        )
+        rel_load.loading_strategy = strat
         async with data_session as session:  # noqa
             alice: Parent = (
                 await session.execute(select(Parent).where(Parent.name == "Alice"))
@@ -222,19 +228,7 @@ def strat_gen_t3(strat: Type[ChildrenLoadingStrategy]):
             victor: Parent = (
                 await session.execute(select(Parent).where(Parent.name == "Victor"))
             ).scalar_one()
-        with monkeypatch.context() as m:
-            m.setattr(
-                field_and_relation.field,
-                "pre_filter",
-                RuntimeFilter(
-                    filters=[
-                        lambda: Child.child_name.like("A2"),
-                    ]
-                ),
-            )
-            list_of_children_by_parent = await field_and_relation.__call__(
-                [alice, victor]
-            )
+        list_of_children_by_parent = await rel_load.__call__([alice, victor])
 
         assert len(list_of_children_by_parent) == 2
         kids = list_of_children_by_parent[0]
@@ -243,12 +237,12 @@ def strat_gen_t3(strat: Type[ChildrenLoadingStrategy]):
         kids = list_of_children_by_parent[1]
         assert len(kids) == 0
 
-    return test_load_children_for_many_using_loader_with_pre_filter
+    return test_load_children_for_many_using_loader_with_where_clause
 
 
-test_load_children_for_many_using_loader_with_pre_filter_union = strat_gen_t3(
+test_load_children_for_many_using_loader_with_where_clause_union = strat_gen_t3(
     UnionLoadingStrategy
 )
-test_load_children_for_many_using_loader_with_pre_filter_values = strat_gen_t3(
+test_load_children_for_many_using_loader_with_where_clause_values = strat_gen_t3(
     ValuesLoadingStrategy
 )

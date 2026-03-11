@@ -40,19 +40,6 @@ from .pagination import (
 from .relay import Node, node_field, node_lookup
 
 __all__ = [
-    # "auth",
-    # "filter",
-    # "types",
-    # "field",
-    # "auto",
-    # "is_auto",
-    # "DjangoFileType",
-    # "DjangoImageType",
-    # "DjangoModelType",
-    # "OneToOneInput",
-    # "OneToManyInput",
-    # "ManyToOneInput",
-    # "ManyToManyInput",
     "connection",
     "attr",
     "relationship",

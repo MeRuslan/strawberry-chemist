@@ -65,25 +65,24 @@ class BookNode:
     title: str
     year: int
     author: Optional[PersonNode]
-    years_since_published: int = strawberry_chemist.field(
-        sqlalchemy_name="year",
-        post_processor=lambda source, result: current_year - result,
-    )
-    title_with_isbn: str = strawberry_chemist.field(
-        sqlalchemy_name="title",
-        additional_parent_fields=["isbn"],
-        post_processor=lambda source, result: f"{source.title} ({source.isbn})",
-    )
-    faulty_title_with_isbn: str = strawberry_chemist.field(
-        sqlalchemy_name="title",
-        post_processor=lambda source, result: f"{source.title} ({source.isbn})",
-    )
 
-    @strawberry_chemist.field(sqlalchemy_name="title")
-    def title_twice(self, info: Info) -> str:
-        return self.title * 2
+    @strawberry_chemist.field(select=["year"])
+    def years_since_published(self, year: int) -> int:
+        return current_year - year
 
-    title_thrice = strawberry_chemist.field(title_thrice, sqlalchemy_name="title")
+    @strawberry_chemist.field(select=["title", "isbn"])
+    def title_with_isbn(self, title: str, isbn: str) -> str:
+        return f"{title} ({isbn})"
+
+    @strawberry_chemist.field(select=["title"])
+    def faulty_title_with_isbn(self, title: str) -> str:
+        return f"{title} ({self.isbn})"
+
+    @strawberry_chemist.field(select=["title"])
+    def title_twice(self, title: str, info: Info) -> str:
+        return title * 2
+
+    title_thrice = strawberry_chemist.field(title_thrice, select=["title"])
 
 
 @strawberry.type
