@@ -4,7 +4,7 @@ import pytest
 from sqlalchemy import ForeignKey, select
 from sqlalchemy.orm import DeclarativeBase, Mapped, mapped_column, relationship
 
-from strawberry_chemist import relation_field
+from strawberry_chemist import relationship as chemist_relationship
 from strawberry_chemist.loaders import (
     UnionLoadingStrategy,
     RelationshipLoader,
@@ -63,7 +63,7 @@ async def data_session(mock_psql_sqla_session):
 
 @pytest.fixture
 def field_and_relation():
-    field = relation_field()
+    field = chemist_relationship()
     field.load_full = True
     field.relationship_property = Parent.child.prop
     rel_load = RelationshipLoader(relationship_property=Parent.child.prop, field=field)

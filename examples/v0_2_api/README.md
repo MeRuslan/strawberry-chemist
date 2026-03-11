@@ -10,7 +10,8 @@ They are intentionally TDD-oriented:
 - the tests are expected to be meaningful only after the 0.2.0 API exists
 - every example uses real SQLAlchemy models backed by SQLite via `aiosqlite`
 
-They are examples, not part of the current package test suite.
+They are examples, and their contracts are exercised from the root package test
+suite in `tests/test_public_api/test_v0_2_contracts.py`.
 
 ## Coverage map
 
@@ -21,16 +22,26 @@ They are examples, not part of the current package test suite.
 | `03_connections_filters_and_ordering` | `sc.connection`, `sc.Connection`, `sc.OffsetConnection`, `@sc.filter`, `sc.filter_field`, `@sc.order`, `sc.order_field`, pagination policy objects |
 | `04_nodes_and_relay_ids` | `@sc.node`, `sc.node_field()`, default PK IDs, custom `ids=(...)`, composite IDs, optional codec |
 | `05_context_and_extensions` | minimal context protocol, `sc.extensions()`, mixed Strawberry root resolvers with Chemist-managed fields |
+| `06_manual_filters_and_orders` | `sc.manual_filter`, `sc.manual_order`, preserving legacy `filter` / `order` GraphQL contracts while still using `sc.connection(...)` |
 
 ## Usage shape
 
-Once the 0.2.0 API exists, each example should be runnable in isolation.
+Each example can be verified in two ways.
 
-Example flow:
+From the repo root, run the root acceptance suite:
 
 ```bash
-uv sync --project examples/v0_2_api/01_types_and_fields
-uv run --project examples/v0_2_api/01_types_and_fields pytest
+uv run pytest -q tests/test_public_api/test_v0_2_contracts.py
+```
+
+To run an example in isolation against a prepublish local build:
+
+```bash
+uv run python -m build --outdir /tmp/strawberry-chemist-dist
+uv sync --project examples/v0_2_api/01_types_and_fields \
+  --find-links /tmp/strawberry-chemist-dist
+uv run --project examples/v0_2_api/01_types_and_fields \
+  pytest examples/v0_2_api/01_types_and_fields/test_contract.py
 ```
 
 The examples intentionally repeat a little boilerplate so that each one can be

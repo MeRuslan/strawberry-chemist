@@ -15,12 +15,12 @@ What changes:
 
 - `post_processor` -> decorated functions
 - field helpers become more specialized and intention-revealing
-- filters and ordering get a proper declarative DSL
+- filters and ordering get a proper declarative DSL plus explicit manual helpers for schema-preserving migrations
 - relay IDs become configurable and readable by default
 
 ## 2. Recommended Release Phases
 
-### Phase 1: Add The New Surface Beside The Old One
+### Phase 1: Ship The New Surface
 
 Ship these new APIs first:
 
@@ -30,14 +30,20 @@ Ship these new APIs first:
 - `connection`
 - `filter` / `filter_field`
 - `order` / `order_field`
+- `manual_filter` / `manual_order`
 - `node` / `node_field`
 - `extensions`
 
-Keep the current APIs working.
+### Phase 2: Migrate Internal And Consumer Usage
 
-### Phase 2: Deprecation Warnings
+Move package docs, examples, and downstream applications onto:
 
-Deprecate with warnings:
+- `relationship`
+- `connection`
+- `manual_filter` / `manual_order`
+- `extensions`
+
+Keep explicit migration examples for:
 
 - `post_processor`
 - `relation_field`
@@ -49,10 +55,10 @@ Deprecate with warnings:
 - `NodeEdge`
 - `extentions`
 
-### Phase 3: 1.0 Surface Freeze
+### Phase 3: Surface Freeze
 
 At 1.0, the documented public API should be the new one only.
-Compatibility aliases can remain temporarily, but docs and examples should stop using them.
+Names outside that surface should be removed instead of lingering as semi-supported aliases.
 
 ## 3. Migration Examples
 
@@ -95,6 +101,26 @@ books_before_1960: list[BookNode] = sc.relationship(
 ### Current
 
 ```python
+subscribers_filter = StrawberrySQLAlchemyFilter(
+    input_type=SubInput,
+    input_filter_map={...},
+    required=True,
+)
+```
+
+### Target
+
+```python
+subscribers_filter = sc.manual_filter(
+    input=SubInput,
+    required=True,
+    apply=lambda stmt, value, ctx: ...,
+)
+```
+
+### Current
+
+```python
 books: RelayConnection[BookNode] = sc.relay_connection_field(order=book_order)
 ```
 
@@ -122,6 +148,25 @@ class BookOrder:
     title = sc.order_field()
 ```
 
+### Current
+
+```python
+review_order = StrawberrySQLAlchemyOrdering(
+    input_type=ReviewOrder,
+    resolve_ordering_map={...},
+)
+```
+
+### Target
+
+```python
+review_order = sc.manual_order(
+    input=ReviewOrder,
+    name="order",
+    apply=lambda stmt, value, ctx: ...,
+)
+```
+
 ## 4. What To Explicitly Defer
 
 These areas should be called experimental or omitted until there is a clean story:
@@ -139,11 +184,11 @@ Recommended implementation order inside the codebase:
 
 1. add `extensions` spelling-safe module and top-level helper
 2. add `attr`, new `field`, and `relationship` APIs
-3. add `connection` unification while keeping aliases
+3. add `connection` unification
 4. add new filter DSL
-5. add new ordering DSL
+5. add new ordering DSL plus manual filter/order escape hatches
 6. add `@node(model=...)` with primary-key defaults and readable default codec
-7. deprecate old names
+7. remove old names from the public surface
 8. rewrite examples and README around the new surface
 
 ## 6. Acceptance Criteria For A Stable API
@@ -156,6 +201,7 @@ Before calling the redesigned API stable, the package should have:
 - tests for relationship-backed computed fields
 - tests for generated filter operator inputs
 - tests for multiple ordering clauses
+- tests for manual filters and manual orders with custom input shapes
 - tests for non-`id` node identifiers
 - tests for composite identifiers
 - tests for readable default relay IDs

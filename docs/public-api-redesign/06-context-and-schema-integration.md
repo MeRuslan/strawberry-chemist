@@ -2,7 +2,7 @@
 
 ## 1. Current Problem
 
-The package currently exposes a mostly-empty `SQLAlchemyContext` type and a misspelled `extentions` module.
+The package currently exposes a mostly-empty `SQLAlchemyContext` type.
 That is serviceable for an internal bridge, but weak as a standalone public contract.
 
 A public package should make it obvious:
@@ -61,7 +61,7 @@ But the preferred docs path should be `sc.extensions()`.
 
 The stable public module should be `strawberry_chemist.extensions`.
 
-`strawberry_chemist.extentions` should remain as a compatibility alias only.
+The old `strawberry_chemist.extentions` typo should not remain part of the public surface.
 
 ## 6. Internal State Should Stay Internal
 

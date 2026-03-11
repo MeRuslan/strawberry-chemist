@@ -11,7 +11,7 @@ from sqlalchemy.orm import (
     joinedload,
 )
 
-from strawberry_chemist import relation_field
+from strawberry_chemist import relationship as chemist_relationship
 from strawberry_chemist.filters.pre_filter import RuntimeFilter
 from strawberry_chemist.loaders import (
     UnionLoadingStrategy,
@@ -97,7 +97,7 @@ async def data_session(mock_psql_sqla_session):
 
 @pytest.fixture
 def field_and_relation():
-    field = relation_field()
+    field = chemist_relationship()
     field.load_full = True
     field.relationship_property = Parent.children.prop
     rel_load = RelationshipLoader(

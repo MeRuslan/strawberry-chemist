@@ -5,6 +5,8 @@ from typing import Any, List, Generic, Tuple, Optional
 import strawberry
 from sqlalchemy.sql import Select
 from strawberry import UNSET
+from strawberry.annotation import StrawberryAnnotation
+from strawberry.arguments import StrawberryArgument
 from strawberry.types.nodes import SelectedField
 
 from strawberry_chemist.pagination.base import (
@@ -36,6 +38,7 @@ class PageInfo:
     startCursor: Optional[str]
     endCursor: Optional[str]
     hasNextPage: bool = False
+    hasPreviousPage: bool = False
 
 
 @strawberry.type
@@ -136,6 +139,7 @@ class StrawberrySQLAlchemyCursorPagination(StrawberrySQLAlchemyPaginationBase):
                 startCursor=edges[0].cursor if edges else None,
                 endCursor=edges[-1].cursor if edges else None,
                 hasNextPage=len(result) > num_to_return,
+                hasPreviousPage=skipped > 0,
             ),
         )
 
@@ -152,3 +156,64 @@ class StrawberrySQLAlchemyCursorPagination(StrawberrySQLAlchemyPaginationBase):
     #         objects = (await session.execute(stmt)).scalars().all()
     #         res = self.paginate_result(objects)
     #     return res
+
+
+class CursorPagination:
+    def __init__(
+        self,
+        max_limit: int = DEFAULT_MAX_LIMIT,
+        default_limit: int = 5,
+    ):
+        self.max_limit = max_limit
+        self.default_limit = default_limit
+
+    @property
+    def arguments(self) -> list[StrawberryArgument]:
+        return [
+            StrawberryArgument(
+                python_name="first",
+                graphql_name="first",
+                type_annotation=StrawberryAnnotation(int),
+                default=self.default_limit,
+            ),
+            StrawberryArgument(
+                python_name="after",
+                graphql_name="after",
+                type_annotation=StrawberryAnnotation(Optional[str]),
+                default=None,
+            ),
+        ]
+
+    @staticmethod
+    def get_fields_from_typed_request(selected_fields: List[SelectedField]):
+        return StrawberrySQLAlchemyCursorPagination().get_fields_from_typed_request(
+            selected_fields
+        )
+
+    @staticmethod
+    def extract_pagination_kwargs(kwargs: dict[str, Any]) -> Tuple[int, Optional[str]]:
+        return kwargs.get("first", 5), kwargs.get("after")
+
+    @staticmethod
+    def cache_key(page: Tuple[int, Optional[str]]) -> Tuple[int, Optional[str]]:
+        return page
+
+    @staticmethod
+    def cursor_from_offset(offset: int) -> str:
+        return StrawberrySQLAlchemyCursorPagination.cursor_from_offset(offset)
+
+    @staticmethod
+    def offset_from_cursor(cursor: Optional[str]) -> Optional[int]:
+        return StrawberrySQLAlchemyCursorPagination.offset_from_cursor(cursor)
+
+    def paginate_query(self, query: Select, page: Tuple[int, Optional[str]]) -> Select:
+        return StrawberrySQLAlchemyCursorPagination(
+            max_limit=self.max_limit
+        ).paginate_query(query, page)
+
+    def paginate_result(
+        self, result: List[GenericPaginationReturnType], **_: Any
+    ) -> RelayConnection[GenericPaginationReturnType]:
+        return StrawberrySQLAlchemyCursorPagination(
+            max_limit=self.max_limit
+        ).paginate_result(result)

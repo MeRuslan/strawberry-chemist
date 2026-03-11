@@ -20,7 +20,9 @@ Stable exports:
 - `OffsetConnection` or `OffsetPage`
 - `filter`
 - `filter_field`
+- `FilterContext`
 - `FilterSet`
+- `manual_filter`
 - `StringFilter`
 - `IntFilter`
 - `FloatFilter`
@@ -30,6 +32,8 @@ Stable exports:
 - `DateTimeFilter`
 - `order`
 - `order_field`
+- `OrderContext`
+- `manual_order`
 - `SortDirection`
 - `NullsOrder`
 - `Node`
@@ -42,15 +46,10 @@ Stable exports:
 Recommended stable submodules:
 
 - `strawberry_chemist.filters`
-- `strawberry_chemist.ordering`
+- `strawberry_chemist.order`
 - `strawberry_chemist.relay`
 - `strawberry_chemist.pagination`
 - `strawberry_chemist.extensions`
-
-Compatibility aliases can exist temporarily:
-
-- `strawberry_chemist.order` -> alias to `ordering`
-- `strawberry_chemist.extentions` -> alias to `extensions`
 
 ## Names To Keep Internal
 
@@ -82,10 +81,10 @@ They may remain importable for compatibility or testing, but they should not anc
 | `needs_fields` | `select=[...]` on relationships | same mental model |
 | `ignore_field_selections` | `load="full"` | user-facing name should describe behavior |
 | `RuntimeFilter` | `where=` / `scope=` | SQL-first public naming |
-| `StrawberrySQLAlchemyFilter` | `@filter` + `filter_field` | polished declarative DSL |
-| `StrawberrySQLAlchemyOrdering` | `@order` + `order_field` | polished declarative DSL |
+| `StrawberrySQLAlchemyFilter` | `@filter` + `filter_field`, or `manual_filter` when schema shape must stay custom | polished declarative DSL plus explicit manual escape hatch |
+| `StrawberrySQLAlchemyOrdering` | `@order` + `order_field`, or `manual_order` when schema shape must stay custom | polished declarative DSL plus explicit manual escape hatch |
 | `NodeEdge` | `node_field()` | clearer relay root field story |
-| `extentions` | `extensions` | spelling fix; keep alias |
+| `extentions` | `extensions` | spelling fix; remove the typo alias |
 | `input()` / `mutation()` | experimental or removed | not mature enough for stable public docs |
 
 ## Dedicated Node Decorator

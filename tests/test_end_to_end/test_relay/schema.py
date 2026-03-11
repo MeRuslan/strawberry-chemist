@@ -1,4 +1,4 @@
-from typing import List, Any, Optional
+from typing import Any, List, Optional
 
 import strawberry
 from sqlalchemy import Integer, String, select
@@ -6,10 +6,10 @@ from sqlalchemy.orm import declarative_base, Mapped, mapped_column
 from strawberry import BasePermission
 from strawberry.types import Info
 
-import strawberry_chemist
-from strawberry_chemist.extentions import DataLoadersExtension, InfoCacheExtension
+import strawberry_chemist as sc
 from strawberry_chemist.gql_context import SQLAlchemyContext
-from strawberry_chemist.relay import NodeEdge, Node, object_field
+from strawberry_chemist.relay.public import resolve_node
+
 
 Base = declarative_base()
 
@@ -20,8 +20,8 @@ class Book(Base):
     title: Mapped[str] = mapped_column(String)
 
 
-@strawberry_chemist.type(model=Book)
-class BookType(Node):
+@sc.node(model=Book)
+class BookType:
     title: str
 
 
@@ -31,7 +31,10 @@ class NoPermission(BasePermission):
 
 
 @strawberry.type
-class Query(NodeEdge):
+class Query:
+    node = sc.node_field(allowed_types=(BookType,))
+    book_by_id = sc.node_field(allowed_types=(BookType,), name="bookById")
+
     @strawberry.field
     def hello(self) -> str:
         return "Hello, world!"
@@ -41,19 +44,21 @@ class Query(NodeEdge):
         async with info.context.get_session() as session:
             return (await session.execute(select(Book))).scalars().all()
 
-    @object_field(model=Book)
-    async def book_by_id(
-        self, node: Book, info: Info[SQLAlchemyContext, Any]
-    ) -> Optional[BookType]:
-        return node
-
-    @object_field(model=Book, node_permission_classes=[NoPermission])
+    @strawberry.field
     async def no_permission_book_by_id(
-        self, node: Book, info: Info[SQLAlchemyContext, Any]
+        self,
+        info: Info[SQLAlchemyContext, Any],
+        id: strawberry.ID,
     ) -> Optional[BookType]:
+        node = await resolve_node(info, id, allowed_types=(BookType,))
+        if node is None:
+            return None
+
+        permission = NoPermission()
+        allowed = await permission.has_permission(node, info=info)
+        if not allowed:
+            raise PermissionError(getattr(permission, "message", None))
         return node
 
 
-schema = strawberry.Schema(
-    query=Query, extensions=[DataLoadersExtension, InfoCacheExtension]
-)
+schema = strawberry.Schema(query=Query, extensions=sc.extensions())

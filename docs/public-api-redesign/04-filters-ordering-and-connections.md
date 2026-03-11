@@ -13,6 +13,11 @@ book_year_filter = StrawberrySQLAlchemyFilter(
 
 That API is workable internally, but it is not polished enough to become the main story.
 
+The public filter and order story should have two lanes:
+
+- a declarative DSL for the common case
+- explicit manual helpers for preserving a hand-authored GraphQL contract
+
 ## 2. Proposed Filter API
 
 ```python
@@ -34,7 +39,6 @@ Recommended built-ins:
 - `IDFilter`
 - `DateFilter`
 - `DateTimeFilter`
-- `EnumFilter[T]`
 
 These types can expose polished operators like:
 
@@ -82,7 +86,7 @@ class FilterSet:
 
 That lets users express real production filtering without inventing custom one-off inputs.
 
-## 4. Custom Filter Escape Hatch
+## 4. DSL-Level Custom Filter Escape Hatch
 
 The DSL must not block advanced cases.
 
@@ -105,9 +109,62 @@ def apply(stmt: Select, value: Any, ctx: sc.FilterContext) -> Select: ...
 - `model`
 - `info`
 - `node_type`
-- current SQLAlchemy statement
+- `resolve_path(stmt, path)` for join-aware path resolution
 
-## 5. Proposed Ordering API
+## 5. Manual Filter Escape Hatch
+
+Some applications need to preserve an existing GraphQL input type exactly during
+migration.
+
+That should be supported directly instead of forcing the DSL to become
+polymorphic.
+
+```python
+@strawberry.input
+class ReviewFilterInput:
+    author_id: strawberry.ID
+    query: str | None = None
+
+
+review_filter = sc.manual_filter(
+    input=ReviewFilterInput,
+    required=True,
+    apply=lambda stmt, value, ctx: ...,
+)
+```
+
+Recommended callback contract:
+
+```python
+def apply(stmt: Select, value: Any, ctx: sc.FilterContext) -> Select: ...
+```
+
+Recommended helper shape:
+
+```python
+sc.manual_filter(
+    *,
+    input: type,
+    apply: Callable[[Select, Any, sc.FilterContext], Select],
+    name: str = "filter",
+    python_name: str | None = None,
+    required: bool = False,
+    default: Any = UNSET,
+    validate: Callable[[Any], Any] | None = None,
+    cache_key: Callable[[Any], Hashable] | None = None,
+    description: str | None = None,
+    model: type | None = None,
+)
+```
+
+This path should allow:
+
+- a completely hand-authored Strawberry input type
+- required filter arguments
+- non-standard filter field names
+- schema-preserving migrations away from old helper objects
+
+## 6. Proposed Ordering API
 
 Current ordering is also too low-level as a public default.
 
@@ -140,7 +197,7 @@ Recommended enums:
 - `SortDirection.ASC | DESC`
 - `NullsOrder.FIRST | LAST`
 
-## 6. Custom Order Escape Hatch
+## 7. DSL-Level Custom Order Escape Hatch
 
 Some ordering requires altered joins or computed expressions.
 
@@ -158,7 +215,57 @@ Stable callback contract:
 def resolve(stmt: Select, ctx: sc.OrderContext) -> tuple[Select, Any]: ...
 ```
 
-## 7. Connections Should Be Unified
+## 8. Manual Order Escape Hatch
+
+Some applications need a custom order argument shape that the DSL should not try
+to generate.
+
+```python
+@strawberry.input
+class ReviewOrder:
+    field: ReviewOrderField
+    order: ReviewOrderDirection
+
+
+review_order = sc.manual_order(
+    input=ReviewOrder,
+    name="order",
+    apply=lambda stmt, value, ctx: ...,
+)
+```
+
+Recommended callback contract:
+
+```python
+def apply(stmt: Select, value: Any, ctx: sc.OrderContext) -> Select: ...
+```
+
+Recommended helper shape:
+
+```python
+sc.manual_order(
+    *,
+    input: type,
+    apply: Callable[[Select, Any, sc.OrderContext], Select],
+    name: str = "orderBy",
+    python_name: str | None = None,
+    required: bool = False,
+    default: Any = UNSET,
+    validate: Callable[[Any], Any] | None = None,
+    cache_key: Callable[[Any], Hashable] | None = None,
+    description: str | None = None,
+    model: type | None = None,
+)
+```
+
+This path should allow:
+
+- legacy `order` arguments instead of `orderBy`
+- single input objects instead of generated order item lists
+- custom enums and field names
+- hand-authored join and grouping behavior
+
+## 9. Connections Should Be Unified
 
 The package should expose one connection builder, not separate top-level helpers split by pagination style.
 
@@ -168,6 +275,15 @@ The package should expose one connection builder, not separate top-level helpers
 books: sc.Connection[BookNode] = sc.connection(
     filter=BookFilter,
     order=BookOrder,
+)
+```
+
+Manual definitions should plug into the same `sc.connection(...)` entrypoint:
+
+```python
+reviews: sc.Connection[ReviewNode] = sc.connection(
+    filter=review_filter,
+    order=review_order,
 )
 ```
 
@@ -190,7 +306,7 @@ For root fields, the package can infer the SQLAlchemy model from `BookNode`.
 author_books: sc.Connection[BookNode] = sc.connection(source="books")
 ```
 
-## 8. Pagination Configuration
+## 10. Pagination Configuration
 
 The public surface should not require users to construct pagination implementation classes.
 
@@ -213,7 +329,7 @@ Default recommendation:
 - cursor pagination for `sc.Connection`
 - limit-offset as explicit opt-in
 
-## 9. `where=` On Connections
+## 11. `where=` On Connections
 
 Connection fields need the same scoped filtering concept as relationships.
 
@@ -227,7 +343,7 @@ books: sc.Connection[BookNode] = sc.connection(
 
 This replaces the current rough split between `pre_filter`, filter objects, and loader-specific connection hooks.
 
-## 10. What The Public API Should Hide
+## 12. What The Public API Should Hide
 
 The package should continue using internal dataloaders and query strategies, but users should not have to know about:
 

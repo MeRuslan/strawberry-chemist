@@ -6,9 +6,6 @@ from sqlalchemy.orm import DeclarativeBase, Mapped, mapped_column, relationship
 from strawberry.types import Info
 
 import strawberry_chemist
-from strawberry_chemist.extentions import DataLoadersExtension, InfoCacheExtension
-from strawberry_chemist.pagination import RelayConnection
-from strawberry_chemist.relay import Node, NodeEdge
 
 
 class Base(DeclarativeBase):
@@ -45,30 +42,30 @@ class Book(Base):
 
 
 @strawberry_chemist.type(model=Author)
-class AuthorNode(Node):
+class AuthorNode:
     name: str
     books: List["BookNode"]
-    books_connection: RelayConnection["BookNode"] = (
-        strawberry_chemist.relay_connection_field(sqlalchemy_name="books")
+    books_connection: strawberry_chemist.Connection["BookNode"] = (
+        strawberry_chemist.connection(source="books")
     )
 
 
 @strawberry_chemist.type(model=Book)
-class BookNode(Node):
+class BookNode:
     title: str
     authors: List["AuthorNode"]
-    authors_connection: RelayConnection["AuthorNode"] = (
-        strawberry_chemist.relay_connection_field(sqlalchemy_name="authors")
+    authors_connection: strawberry_chemist.Connection["AuthorNode"] = (
+        strawberry_chemist.connection(source="authors")
     )
 
 
 @strawberry.type
-class Query(NodeEdge):
-    people_connection: RelayConnection["AuthorNode"] = (
-        strawberry_chemist.relay_connection_field()
+class Query:
+    people_connection: strawberry_chemist.Connection["AuthorNode"] = (
+        strawberry_chemist.connection()
     )
-    books_connection: RelayConnection["BookNode"] = (
-        strawberry_chemist.relay_connection_field()
+    books_connection: strawberry_chemist.Connection["BookNode"] = (
+        strawberry_chemist.connection()
     )
 
     @strawberry.field
@@ -88,6 +85,4 @@ class Query(NodeEdge):
             return book
 
 
-schema = strawberry.Schema(
-    query=Query, extensions=[DataLoadersExtension, InfoCacheExtension]
-)
+schema = strawberry.Schema(query=Query, extensions=strawberry_chemist.extensions())

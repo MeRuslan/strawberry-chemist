@@ -138,10 +138,11 @@ If the package ships a helper context class, it should be convenience-only.
 Relay helpers are important, but they should remain opt-in.
 The package should not force every user into relay naming, node fields, or encoded IDs.
 
-## 10. API Maturity Means Deprecation Discipline
+## 10. API Maturity Means Migration Discipline
 
 The redesign should be shipped with:
 
-- clear aliases for one migration cycle
-- deprecation warnings on old names
+- clear migration examples
+- explicit escape hatches for schema-preserving upgrades
+- decisive removal of names that contradict the new public surface
 - migration examples, not just replacement tables

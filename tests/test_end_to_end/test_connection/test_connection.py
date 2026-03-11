@@ -59,10 +59,7 @@ async def authors_books(mock_sqlite_sqla_session):
 @pytest.mark.asyncio
 async def test_load_books_connection(authors_books, test_connection_client):
     first = 3
-    query = (
-        "{ booksConnection( pagination: {first: %s} ) { edges { node { title } } } }"
-        % first
-    )
+    query = "{ booksConnection(first: %s) { edges { node { title } } } }" % first
     result = test_connection_client.post("/", json={"query": query}).json()
 
     assert "errors" not in result
@@ -73,10 +70,7 @@ async def test_load_books_connection(authors_books, test_connection_client):
 async def test_connection_does_not_load_whole_model_by_default(
     authors_books, test_connection_client, monkeypatch
 ):
-    query = (
-        "{ booksConnection( pagination: {first: %s} ) { edges { node { faultyField } } } }"
-        % 10
-    )
+    query = "{ booksConnection(first: %s) { edges { node { faultyField } } } }" % 10
     with monkeypatch.context() as m:
         # don't log errors, we expect them
         m.setattr(StrawberryLogger, "error", lambda *args, **kwargs: None)
@@ -89,8 +83,8 @@ async def test_load_nested_connection(authors_books, test_connection_client):
     # so that at least one has books
     first = 3
     query = (
-        "{ peopleConnection( pagination: {first: %s} ) { edges { node { "
-        " name books ( pagination: {first: %s} ) { edges { node { title} } }"
+        "{ peopleConnection(first: %s) { edges { node { "
+        " name books(first: %s) { edges { node { title} } }"
         " } } } }" % (first, first)
     )
     result = test_connection_client.post("/", json={"query": query}).json()
@@ -115,7 +109,7 @@ async def test_load_nested_connection(authors_books, test_connection_client):
 async def test_load_connection_with_filter(authors_books, test_connection_client):
     year = 1960
     query = (
-        "{ bookYearFilterConnection( pagination: {first: 20}, filter: {"
+        "{ bookYearFilterConnection(first: 20, filter: {"
         "lessThan: %s } ) { edges { node { year } } } }" % year
     )
     result = test_connection_client.post("/", json={"query": query}).json()
@@ -131,7 +125,7 @@ async def test_load_connection_with_compound_filter(
 ):
     l_year, r_year = 1960, 1980
     query = (
-        "{ bookYearFilterConnection( pagination: {first: 20}, filter: {"
+        "{ bookYearFilterConnection(first: 20, filter: {"
         "lessThan: %s, greaterThan: %s  } ) { edges { node { year } } } }"
         % (r_year, l_year)
     )
@@ -145,7 +139,7 @@ async def test_load_connection_with_compound_filter(
 @pytest.mark.asyncio
 async def test_load_connection_with_filter_empty(authors_books, test_connection_client):
     query = (
-        "{ bookYearFilterConnection( pagination: {first: 20}, filter: {"
+        "{ bookYearFilterConnection(first: 20, filter: {"
         "} ) { edges { node { year } } } }"
     )
     result = test_connection_client.post("/", json={"query": query}).json()
@@ -156,7 +150,7 @@ async def test_load_connection_with_filter_empty(authors_books, test_connection_
 @pytest.mark.asyncio
 async def test_load_connection_with_order(authors_books, test_connection_client):
     query = (
-        "{ bookOrderConnection( pagination: {first: 20}, order: {"
+        "{ bookOrderConnection(first: 20, order: {"
         "field: YEAR, order: ASC} ) { edges { node { year } } } }"
     )
     result = test_connection_client.post("/", json={"query": query}).json()
@@ -171,7 +165,7 @@ async def test_load_connection_with_order(authors_books, test_connection_client)
 @pytest.mark.asyncio
 async def test_load_connection_with_order_title(authors_books, test_connection_client):
     query = (
-        "{ bookOrderConnection( pagination: {first: 20}, order: {"
+        "{ bookOrderConnection(first: 20, order: {"
         "field: TITLE, order: ASC} ) { edges { node { year title } } } }"
     )
     result = test_connection_client.post("/", json={"query": query}).json()
@@ -191,7 +185,7 @@ async def test_load_connection_with_order_title(authors_books, test_connection_c
 async def test_load_connection_empty(authors_books, test_connection_client):
     l_year, r_year = 1960, 1980
     query = (
-        "{ bookYearFilterConnection( pagination: {first: 20}, filter: {"
+        "{ bookYearFilterConnection(first: 20, filter: {"
         "lessThan: %s, greaterThan: %s  } ) { edges { node { year } } } }"
         % (l_year, r_year)
     )
@@ -205,7 +199,7 @@ async def test_load_connection_paginate_trough_it(
     authors_books, test_connection_client
 ):
     query = (
-        "{ bookOrderConnection( pagination: {first: 20}, order: {"
+        "{ bookOrderConnection(first: 20, order: {"
         "field: YEAR, order: ASC} ) { edges { node { year } cursor } } }"
     )
     result = test_connection_client.post("/", json={"query": query}).json()
@@ -213,7 +207,7 @@ async def test_load_connection_paginate_trough_it(
     second_book_cursor = result["data"]["bookOrderConnection"]["edges"][1]["cursor"]
     third_book = result["data"]["bookOrderConnection"]["edges"][2]["node"]
     query = (
-        '{ bookOrderConnection( pagination: {first: 20, after: "%s"}, order: {'
+        '{ bookOrderConnection(first: 20, after: "%s", order: {'
         "field: YEAR, order: ASC} ) { edges { node { year } cursor } } }"
         % second_book_cursor
     )
@@ -227,8 +221,7 @@ async def test_load_connection_paginate_trough_it(
 async def test_load_nested_connection_empty(authors_books, test_connection_client):
     query = (
         '{ personByName( name: "%s" ) { '
-        "name books ( pagination: {first: %s} ) { edges { node { title} } } } }"
-        % (yemets.name, 10)
+        "name books(first: %s) { edges { node { title} } } } }" % (yemets.name, 10)
     )
     result = test_connection_client.post("/", json={"query": query}).json()
     assert "errors" not in result
