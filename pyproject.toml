@@ -64,6 +64,18 @@ dev = [
 [tool.hatch.build.targets.wheel]
 packages = ["src/strawberry_chemist"]
 
+[tool.hatch.build]
+exclude = [
+    "/.venv",
+    "/.venv*",
+    "/.mypy_cache",
+    "/.pytest_cache",
+    "/.ruff_cache",
+    "/__pycache__",
+    "/dist",
+    "/site",
+]
+
 [tool.pytest.ini_options]
 testpaths = ["tests"]
 addopts = '-m "not psql"'
