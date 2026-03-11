@@ -1,7 +1,10 @@
 from __future__ import annotations
 
-import pytest
+from collections.abc import AsyncIterator
+from dataclasses import dataclass
 
+import pytest_asyncio
+import strawberry
 from app import (
     AppContext,
     build_schema,
@@ -11,14 +14,47 @@ from app import (
 )
 
 
-@pytest.mark.asyncio
-async def test_cursor_connection_applies_filtering_and_multi_clause_ordering() -> None:
+@dataclass
+class ExampleEnv:
+    schema: strawberry.Schema
+    context: AppContext
+
+
+@pytest_asyncio.fixture
+async def env() -> AsyncIterator[ExampleEnv]:
     engine, session_factory = create_engine_and_sessionmaker()
     await prepare_database(engine)
     await seed_data(session_factory)
-    schema = build_schema()
+    try:
+        yield ExampleEnv(
+            schema=build_schema(),
+            context=AppContext(session_factory),
+        )
+    finally:
+        await engine.dispose()
 
-    result = await schema.execute(
+
+async def execute_ok(env: ExampleEnv, query: str) -> dict[str, object]:
+    result = await env.schema.execute(query, context_value=env.context)
+    assert result.errors is None
+    assert result.data is not None
+    return result.data
+
+
+def test_schema_exposes_filter_and_order_arguments() -> None:
+    sdl = build_schema().as_str()
+
+    assert "books(" in sdl
+    assert "filter: BookFilter" in sdl
+    assert "orderBy: [BookOrderItem!]" in sdl
+    assert "booksPage(" in sdl
+
+
+async def test_cursor_connection_applies_filtering_and_multi_clause_ordering(
+    env: ExampleEnv,
+) -> None:
+    data = await execute_ok(
+        env,
         """
         query {
           books(
@@ -46,11 +82,9 @@ async def test_cursor_connection_applies_filtering_and_multi_clause_ordering() -
           }
         }
         """,
-        context_value=AppContext(session_factory),
     )
 
-    assert result.errors is None
-    assert result.data == {
+    assert data == {
         "books": {
             "edges": [
                 {
@@ -66,17 +100,12 @@ async def test_cursor_connection_applies_filtering_and_multi_clause_ordering() -
         }
     }
 
-    await engine.dispose()
 
-
-@pytest.mark.asyncio
-async def test_offset_connection_supports_null_ordering_and_total_count() -> None:
-    engine, session_factory = create_engine_and_sessionmaker()
-    await prepare_database(engine)
-    await seed_data(session_factory)
-    schema = build_schema()
-
-    result = await schema.execute(
+async def test_offset_connection_supports_null_ordering_and_total_count(
+    env: ExampleEnv,
+) -> None:
+    data = await execute_ok(
+        env,
         """
         query {
           booksPage(
@@ -93,11 +122,9 @@ async def test_offset_connection_supports_null_ordering_and_total_count() -> Non
           }
         }
         """,
-        context_value=AppContext(session_factory),
     )
 
-    assert result.errors is None
-    assert result.data == {
+    assert data == {
         "booksPage": {
             "items": [
                 {"title": "The Hobbit", "ranking": 8},
@@ -107,17 +134,10 @@ async def test_offset_connection_supports_null_ordering_and_total_count() -> Non
         }
     }
 
-    await engine.dispose()
 
-
-@pytest.mark.asyncio
-async def test_filters_support_boolean_composition() -> None:
-    engine, session_factory = create_engine_and_sessionmaker()
-    await prepare_database(engine)
-    await seed_data(session_factory)
-    schema = build_schema()
-
-    result = await schema.execute(
+async def test_filters_support_boolean_composition(env: ExampleEnv) -> None:
+    data = await execute_ok(
+        env,
         """
         query {
           books(
@@ -139,11 +159,9 @@ async def test_filters_support_boolean_composition() -> None:
           }
         }
         """,
-        context_value=AppContext(session_factory),
     )
 
-    assert result.errors is None
-    assert result.data == {
+    assert data == {
         "books": {
             "edges": [
                 {"node": {"title": "The Hobbit", "year": 1937}},
@@ -151,5 +169,3 @@ async def test_filters_support_boolean_composition() -> None:
             ]
         }
     }
-
-    await engine.dispose()

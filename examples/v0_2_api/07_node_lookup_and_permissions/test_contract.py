@@ -1,7 +1,10 @@
 from __future__ import annotations
 
-import pytest
+from collections.abc import AsyncIterator
+from dataclasses import dataclass
 
+import pytest_asyncio
+import strawberry
 from app import (
     AppContext,
     build_schema,
@@ -11,43 +14,95 @@ from app import (
 )
 
 
-@pytest.mark.asyncio
-async def test_node_lookup_decorator_contract() -> None:
+@dataclass
+class ExampleEnv:
+    schema: strawberry.Schema
+    session_factory: object
+    ids: dict[str, int]
+
+
+@pytest_asyncio.fixture
+async def env() -> AsyncIterator[ExampleEnv]:
     engine, session_factory = create_engine_and_sessionmaker()
     await prepare_database(engine)
     ids = await seed_data(session_factory)
-    schema = build_schema()
-    sdl = schema.as_str()
+    try:
+        yield ExampleEnv(
+            schema=build_schema(),
+            session_factory=session_factory,
+            ids=ids,
+        )
+    finally:
+        await engine.dispose()
+
+
+def build_context(env: ExampleEnv, *, current_user_id: int | None) -> AppContext:
+    return AppContext(env.session_factory, current_user_id=current_user_id)
+
+
+async def execute(
+    env: ExampleEnv,
+    query: str,
+    *,
+    variable_values: dict[str, str] | None = None,
+    current_user_id: int | None,
+):
+    return await env.schema.execute(
+        query,
+        variable_values=variable_values,
+        context_value=build_context(env, current_user_id=current_user_id),
+    )
+
+
+def test_schema_uses_custom_id_argument_names() -> None:
+    sdl = build_schema().as_str()
 
     assert "postById(postId: ID!): Post" in sdl
     assert "renamePost(postId: ID!, title: String!): Post" in sdl
     assert " post:" not in sdl
 
-    post_result = await schema.execute(
+
+async def test_node_lookup_resolves_matching_node_ids(env: ExampleEnv) -> None:
+    result = await execute(
+        env,
         """
-        query($postId: ID!, $userId: ID!) {
+        query($postId: ID!) {
           postById(postId: $postId) {
-            title
-          }
-          mismatch: postById(postId: $userId) {
             title
           }
         }
         """,
-        variable_values={
-            "postId": f"Post_{ids['first_post']}",
-            "userId": f"User_{ids['alice']}",
-        },
-        context_value=AppContext(session_factory, current_user_id=None),
+        variable_values={"postId": f"Post_{env.ids['first_post']}"},
+        current_user_id=None,
     )
 
-    assert post_result.errors is None
-    assert post_result.data == {
+    assert result.errors is None
+    assert result.data == {
         "postById": {"title": "Draft one"},
-        "mismatch": None,
     }
 
-    rename_result = await schema.execute(
+
+async def test_node_lookup_rejects_mismatched_node_ids(env: ExampleEnv) -> None:
+    result = await execute(
+        env,
+        """
+        query($userId: ID!) {
+          postById(postId: $userId) {
+            title
+          }
+        }
+        """,
+        variable_values={"userId": f"User_{env.ids['alice']}"},
+        current_user_id=None,
+    )
+
+    assert result.errors is None
+    assert result.data == {"postById": None}
+
+
+async def test_post_author_can_rename_a_loaded_node(env: ExampleEnv) -> None:
+    result = await execute(
+        env,
         """
         mutation($postId: ID!) {
           renamePost(postId: $postId, title: "Renamed draft") {
@@ -55,16 +110,19 @@ async def test_node_lookup_decorator_contract() -> None:
           }
         }
         """,
-        variable_values={"postId": f"Post_{ids['first_post']}"},
-        context_value=AppContext(session_factory, current_user_id=ids["alice"]),
+        variable_values={"postId": f"Post_{env.ids['first_post']}"},
+        current_user_id=env.ids["alice"],
     )
 
-    assert rename_result.errors is None
-    assert rename_result.data == {
+    assert result.errors is None
+    assert result.data == {
         "renamePost": {"title": "Renamed draft"},
     }
 
-    denied_result = await schema.execute(
+
+async def test_non_author_cannot_rename_post(env: ExampleEnv) -> None:
+    result = await execute(
+        env,
         """
         mutation($postId: ID!) {
           renamePost(postId: $postId, title: "Nope") {
@@ -72,14 +130,18 @@ async def test_node_lookup_decorator_contract() -> None:
           }
         }
         """,
-        variable_values={"postId": f"Post_{ids['first_post']}"},
-        context_value=AppContext(session_factory, current_user_id=ids["bob"]),
+        variable_values={"postId": f"Post_{env.ids['first_post']}"},
+        current_user_id=env.ids["bob"],
     )
 
-    assert denied_result.data is None or denied_result.data["renamePost"] is None
-    assert denied_result.errors is not None
+    assert result.data is None or result.data["renamePost"] is None
+    assert result.errors is not None
+    assert result.errors[0].message == "Actor cannot modify this post"
 
-    unauthenticated_result = await schema.execute(
+
+async def test_unauthenticated_actor_cannot_rename_post(env: ExampleEnv) -> None:
+    result = await execute(
+        env,
         """
         mutation($postId: ID!) {
           renamePost(postId: $postId, title: "Nope") {
@@ -87,14 +149,10 @@ async def test_node_lookup_decorator_contract() -> None:
           }
         }
         """,
-        variable_values={"postId": f"Post_{ids['first_post']}"},
-        context_value=AppContext(session_factory, current_user_id=None),
+        variable_values={"postId": f"Post_{env.ids['first_post']}"},
+        current_user_id=None,
     )
 
-    assert (
-        unauthenticated_result.data is None
-        or unauthenticated_result.data["renamePost"] is None
-    )
-    assert unauthenticated_result.errors is not None
-
-    await engine.dispose()
+    assert result.data is None or result.data["renamePost"] is None
+    assert result.errors is not None
+    assert result.errors[0].message == "Authentication required"

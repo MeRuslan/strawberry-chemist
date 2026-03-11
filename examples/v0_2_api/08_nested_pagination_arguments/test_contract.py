@@ -1,7 +1,10 @@
 from __future__ import annotations
 
-import pytest
+from collections.abc import AsyncIterator
+from dataclasses import dataclass
 
+import pytest_asyncio
+import strawberry
 from app import (
     AppContext,
     build_schema,
@@ -11,20 +14,47 @@ from app import (
 )
 
 
-@pytest.mark.asyncio
-async def test_nested_pagination_arguments_contract() -> None:
+@dataclass
+class ExampleEnv:
+    schema: strawberry.Schema
+    context: AppContext
+
+
+@pytest_asyncio.fixture
+async def env() -> AsyncIterator[ExampleEnv]:
     engine, session_factory = create_engine_and_sessionmaker()
     await prepare_database(engine)
     await seed_data(session_factory)
-    schema = build_schema()
-    sdl = schema.as_str()
+    try:
+        yield ExampleEnv(
+            schema=build_schema(),
+            context=AppContext(session_factory),
+        )
+    finally:
+        await engine.dispose()
+
+
+async def execute_ok(env: ExampleEnv, query: str) -> dict[str, object]:
+    result = await env.schema.execute(query, context_value=env.context)
+    assert result.errors is None
+    assert result.data is not None
+    return result.data
+
+
+def test_schema_uses_nested_pagination_arguments() -> None:
+    sdl = build_schema().as_str()
 
     assert "books(pagination: CursorPaginationInput)" in sdl
     assert "booksPage(pagination: LimitOffsetPaginationInput)" in sdl
     assert "books(first:" not in sdl
     assert "booksPage(limit:" not in sdl
 
-    cursor_result = await schema.execute(
+
+async def test_cursor_connection_accepts_nested_pagination_input(
+    env: ExampleEnv,
+) -> None:
+    data = await execute_ok(
+        env,
         """
         query {
           books(pagination: {first: 2}) {
@@ -41,11 +71,9 @@ async def test_nested_pagination_arguments_contract() -> None:
           }
         }
         """,
-        context_value=AppContext(session_factory),
     )
 
-    assert cursor_result.errors is None
-    assert cursor_result.data == {
+    assert data == {
         "books": {
             "edges": [
                 {"node": {"title": "The Hobbit", "year": 1937}},
@@ -55,7 +83,12 @@ async def test_nested_pagination_arguments_contract() -> None:
         }
     }
 
-    offset_result = await schema.execute(
+
+async def test_offset_connection_accepts_nested_pagination_input(
+    env: ExampleEnv,
+) -> None:
+    data = await execute_ok(
+        env,
         """
         query {
           booksPage(pagination: {limit: 2, offset: 1}) {
@@ -67,11 +100,9 @@ async def test_nested_pagination_arguments_contract() -> None:
           }
         }
         """,
-        context_value=AppContext(session_factory),
     )
 
-    assert offset_result.errors is None
-    assert offset_result.data == {
+    assert data == {
         "booksPage": {
             "items": [
                 {"title": "The Lord of the Rings", "year": 1954},
@@ -80,5 +111,3 @@ async def test_nested_pagination_arguments_contract() -> None:
             "totalCount": 3,
         }
     }
-
-    await engine.dispose()

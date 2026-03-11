@@ -1,7 +1,10 @@
 from __future__ import annotations
 
-import pytest
+from collections.abc import AsyncIterator
+from dataclasses import dataclass
 
+import pytest_asyncio
+import strawberry
 from app import (
     AppContext,
     build_schema,
@@ -11,14 +14,36 @@ from app import (
 )
 
 
-@pytest.mark.asyncio
-async def test_relationship_fields_support_scoping_and_transforms() -> None:
+@dataclass
+class ExampleEnv:
+    schema: strawberry.Schema
+    context: AppContext
+
+
+@pytest_asyncio.fixture
+async def env() -> AsyncIterator[ExampleEnv]:
     engine, session_factory = create_engine_and_sessionmaker()
     await prepare_database(engine)
     await seed_data(session_factory)
-    schema = build_schema()
+    try:
+        yield ExampleEnv(
+            schema=build_schema(),
+            context=AppContext(session_factory),
+        )
+    finally:
+        await engine.dispose()
 
-    result = await schema.execute(
+
+async def execute_ok(env: ExampleEnv, query: str) -> dict[str, object]:
+    result = await env.schema.execute(query, context_value=env.context)
+    assert result.errors is None
+    assert result.data is not None
+    return result.data
+
+
+async def test_relationship_field_returns_all_related_rows(env: ExampleEnv) -> None:
+    data = await execute_ok(
+        env,
         """
         query {
           authors {
@@ -26,19 +51,12 @@ async def test_relationship_fields_support_scoping_and_transforms() -> None:
             publishedBooks {
               title
             }
-            classicBooks {
-              title
-            }
-            bookTitles
-            publicationLabels
           }
         }
         """,
-        context_value=AppContext(session_factory),
     )
 
-    assert result.errors is None
-    assert result.data == {
+    assert data == {
         "authors": [
             {
                 "name": "J.R.R. Tolkien",
@@ -47,15 +65,99 @@ async def test_relationship_fields_support_scoping_and_transforms() -> None:
                     {"title": "The Lord of the Rings"},
                     {"title": "The Silmarillion"},
                 ],
+            },
+            {
+                "name": "Ursula K. Le Guin",
+                "publishedBooks": [{"title": "A Wizard of Earthsea"}],
+            },
+        ]
+    }
+
+
+async def test_scoped_relationship_field_applies_where_clause(env: ExampleEnv) -> None:
+    data = await execute_ok(
+        env,
+        """
+        query {
+          authors {
+            name
+            classicBooks {
+              title
+            }
+          }
+        }
+        """,
+    )
+
+    assert data == {
+        "authors": [
+            {
+                "name": "J.R.R. Tolkien",
                 "classicBooks": [
                     {"title": "The Hobbit"},
                     {"title": "The Lord of the Rings"},
                 ],
+            },
+            {
+                "name": "Ursula K. Le Guin",
+                "classicBooks": [],
+            },
+        ]
+    }
+
+
+async def test_relationship_transform_can_project_selected_fields(
+    env: ExampleEnv,
+) -> None:
+    data = await execute_ok(
+        env,
+        """
+        query {
+          authors {
+            name
+            bookTitles
+          }
+        }
+        """,
+    )
+
+    assert data == {
+        "authors": [
+            {
+                "name": "J.R.R. Tolkien",
                 "bookTitles": [
                     "The Hobbit",
                     "The Lord of the Rings",
                     "The Silmarillion",
                 ],
+            },
+            {
+                "name": "Ursula K. Le Guin",
+                "bookTitles": ["A Wizard of Earthsea"],
+            },
+        ]
+    }
+
+
+async def test_full_load_relationship_transform_can_use_unselected_columns(
+    env: ExampleEnv,
+) -> None:
+    data = await execute_ok(
+        env,
+        """
+        query {
+          authors {
+            name
+            publicationLabels
+          }
+        }
+        """,
+    )
+
+    assert data == {
+        "authors": [
+            {
+                "name": "J.R.R. Tolkien",
                 "publicationLabels": [
                     "The Hobbit (1937)",
                     "The Lord of the Rings (1954)",
@@ -64,12 +166,7 @@ async def test_relationship_fields_support_scoping_and_transforms() -> None:
             },
             {
                 "name": "Ursula K. Le Guin",
-                "publishedBooks": [{"title": "A Wizard of Earthsea"}],
-                "classicBooks": [],
-                "bookTitles": ["A Wizard of Earthsea"],
                 "publicationLabels": ["A Wizard of Earthsea (1968)"],
             },
         ]
     }
-
-    await engine.dispose()

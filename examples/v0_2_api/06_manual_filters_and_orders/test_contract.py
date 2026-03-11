@@ -1,7 +1,10 @@
 from __future__ import annotations
 
-import pytest
+from collections.abc import AsyncIterator
+from dataclasses import dataclass
 
+import pytest_asyncio
+import strawberry
 from app import (
     AppContext,
     build_schema,
@@ -9,6 +12,44 @@ from app import (
     prepare_database,
     seed_data,
 )
+
+
+@dataclass
+class ExampleEnv:
+    schema: strawberry.Schema
+    context: AppContext
+    ids: dict[str, int]
+
+
+@pytest_asyncio.fixture
+async def env() -> AsyncIterator[ExampleEnv]:
+    engine, session_factory = create_engine_and_sessionmaker()
+    await prepare_database(engine)
+    ids = await seed_data(session_factory)
+    try:
+        yield ExampleEnv(
+            schema=build_schema(),
+            context=AppContext(session_factory),
+            ids=ids,
+        )
+    finally:
+        await engine.dispose()
+
+
+async def execute_ok(
+    env: ExampleEnv,
+    query: str,
+    *,
+    variable_values: dict[str, str] | None = None,
+) -> dict[str, object]:
+    result = await env.schema.execute(
+        query,
+        variable_values=variable_values,
+        context_value=env.context,
+    )
+    assert result.errors is None
+    assert result.data is not None
+    return result.data
 
 
 def test_manual_filter_and_order_preserve_legacy_schema_shape() -> None:
@@ -24,19 +65,45 @@ def test_manual_filter_and_order_preserve_legacy_schema_shape() -> None:
     assert "orderBy:" not in sdl
 
 
-@pytest.mark.asyncio
-async def test_manual_filter_and_order_can_preserve_existing_query_contracts() -> None:
-    engine, session_factory = create_engine_and_sessionmaker()
-    await prepare_database(engine)
-    ids = await seed_data(session_factory)
-    schema = build_schema()
+async def test_manual_filter_input_can_preserve_existing_query_arguments(
+    env: ExampleEnv,
+) -> None:
+    data = await execute_ok(
+        env,
+        """
+        query($authorId: ID!) {
+          reviews(first: 10, filter: {authorId: $authorId, query: "The"}) {
+            edges {
+              node {
+                title
+              }
+            }
+          }
+        }
+        """,
+        variable_values={"authorId": str(env.ids["alice"])},
+    )
 
-    result = await schema.execute(
+    titles = {
+        edge["node"]["title"]
+        for edge in data["reviews"]["edges"]  # type: ignore[index]
+    }
+    assert titles == {
+        "The Hobbit review",
+        "The Silmarillion review",
+    }
+
+
+async def test_manual_order_input_can_preserve_existing_order_argument(
+    env: ExampleEnv,
+) -> None:
+    data = await execute_ok(
+        env,
         """
         query($authorId: ID!) {
           reviews(
             first: 10
-            filter: {authorId: $authorId, query: "The"}
+            filter: {authorId: $authorId}
             order: {field: VOTES, order: DESC}
           ) {
             edges {
@@ -47,18 +114,15 @@ async def test_manual_filter_and_order_can_preserve_existing_query_contracts() -
           }
         }
         """,
-        variable_values={"authorId": str(ids["alice"])},
-        context_value=AppContext(session_factory),
+        variable_values={"authorId": str(env.ids["alice"])},
     )
 
-    assert result.errors is None
-    assert result.data == {
+    assert data == {
         "reviews": {
             "edges": [
                 {"node": {"title": "The Hobbit review"}},
+                {"node": {"title": "A Wizard of Earthsea review"}},
                 {"node": {"title": "The Silmarillion review"}},
             ]
         }
     }
-
-    await engine.dispose()

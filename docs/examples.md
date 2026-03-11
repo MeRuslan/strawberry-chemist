@@ -6,7 +6,7 @@ API.
 ## Run against the current checkout
 
 ```bash
-scripts/run-example-local 03_connections_filters_and_ordering
+make sample-test EXAMPLE=03_connections_filters_and_ordering
 ```
 
 This uses the example project's own environment, but resolves
@@ -16,11 +16,26 @@ This uses the example project's own environment, but resolves
 ## Run against the pinned published package
 
 ```bash
-scripts/run-example-published 03_connections_filters_and_ordering
+make sample-test-published EXAMPLE=03_connections_filters_and_ordering
 ```
 
 This ignores the local source override and resolves the pinned published
 version instead.
+
+## Print or serve a sample schema
+
+Print an example SDL from the repo root:
+
+```bash
+make sample-schema EXAMPLE=03_connections_filters_and_ordering
+```
+
+Serve a seeded example locally:
+
+```bash
+uv sync --group dev
+make sample-serve EXAMPLE=03_connections_filters_and_ordering PORT=8000
+```
 
 To point that published-mode flow at a locally built distribution instead of
 PyPI, set `STRAWBERRY_CHEMIST_FIND_LINKS`:

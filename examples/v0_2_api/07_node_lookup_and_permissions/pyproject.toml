@@ -7,8 +7,8 @@ dependencies = [
     "pytest>=9.0.2",
     "pytest-asyncio>=1.1.0",
     "sqlalchemy>=2.0.41",
-    "strawberry-chemist==0.2.0",
-    "strawberry-graphql==0.211.1",
+    "strawberry-chemist==0.2.1",
+    "strawberry-graphql~=0.311.1",
 ]
 
 [tool.pytest.ini_options]

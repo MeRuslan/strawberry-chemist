@@ -1,11 +1,11 @@
-# 0.2.0 API contract examples
+# 0.2.1 API contract examples
 
 These examples are standalone consumer projects for the `strawberry-chemist`
-`0.2.0` public API.
+`0.2.1` public API.
 
 Each example:
 
-- pins `strawberry-chemist==0.2.0`
+- pins `strawberry-chemist==0.2.1`
 - includes a local `tool.uv.sources` override pointing at the current checkout
 - has a `test_contract.py` file defining the intended behavior
 - uses real SQLAlchemy models backed by SQLite via `aiosqlite`
@@ -40,12 +40,27 @@ To run an example in isolation against the current checkout:
 
 ```bash
 scripts/run-example-local 01_types_and_fields
+make sample-test EXAMPLE=01_types_and_fields
 ```
 
 To run an example against the pinned published package instead of the checkout:
 
 ```bash
 scripts/run-example-published 01_types_and_fields
+make sample-test-published EXAMPLE=01_types_and_fields
+```
+
+To print an example schema:
+
+```bash
+make sample-schema EXAMPLE=01_types_and_fields
+```
+
+To serve a seeded example schema locally:
+
+```bash
+uv sync --group dev
+make sample-serve EXAMPLE=01_types_and_fields PORT=8000
 ```
 
 To run published-mode against a locally built distribution artifact:
