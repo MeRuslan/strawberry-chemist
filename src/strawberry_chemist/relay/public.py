@@ -2,7 +2,8 @@ from __future__ import annotations
 
 import inspect as pyinspect
 from dataclasses import dataclass
-from functools import wraps
+from functools import reduce, wraps
+import operator
 from typing import Annotated, Any, Optional, Protocol, Sequence, Union, cast
 from urllib.parse import quote, unquote
 
@@ -275,7 +276,7 @@ def _build_union_return_type(allowed_types: Sequence[type[Any]]) -> Any:
     union_name = "ChemistNode_" + "_".join(
         node_type.__name__ for node_type in allowed_types
     )
-    union_type = Union.__getitem__(tuple(allowed_types))
+    union_type = reduce(operator.or_, allowed_types[1:], allowed_types[0])
     return Optional[Annotated[union_type, strawberry.union(union_name)]]
 
 

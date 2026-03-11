@@ -7,8 +7,8 @@ from sqlalchemy import inspect
 from sqlalchemy.orm import DeclarativeMeta
 from strawberry import UNSET, LazyType
 from strawberry.annotation import StrawberryAnnotation
-from strawberry.field import StrawberryField
-from strawberry.type import StrawberryOptional, StrawberryList
+from strawberry.types.base import StrawberryList, StrawberryOptional
+from strawberry.types.field import StrawberryField
 from strawberry.types import Info
 
 from strawberry_chemist import utils
@@ -100,6 +100,7 @@ class StrawberrySQLAlchemyField(StrawberryField):
         )
         new_field.is_auto = getattr(field, "is_auto", False)
         new_field.origin_container_type = getattr(field, "origin_container_type", None)
+        new_field._field_type = getattr(field, "_field_type", new_field._field_type)
         return new_field
 
     @cached_property

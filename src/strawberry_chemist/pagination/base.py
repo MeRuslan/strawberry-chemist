@@ -3,7 +3,7 @@ from __future__ import annotations
 from typing import Any, Hashable, Protocol, TypeGuard, TypeVar, runtime_checkable
 
 from sqlalchemy.sql import Select
-from strawberry.arguments import StrawberryArgument
+from strawberry.types.arguments import StrawberryArgument
 from strawberry.types.nodes import SelectedField
 
 

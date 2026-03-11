@@ -7,7 +7,7 @@ from typing import Any, Generic, Optional, TypeAlias
 import strawberry
 from sqlalchemy.sql import Select
 from strawberry.annotation import StrawberryAnnotation
-from strawberry.arguments import StrawberryArgument
+from strawberry.types.arguments import StrawberryArgument
 from strawberry.types.nodes import SelectedField
 
 from strawberry_chemist.pagination.base import GenericPaginationReturnType

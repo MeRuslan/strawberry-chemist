@@ -11,7 +11,7 @@ authors = [
 ]
 license = { file = "LICENSE" }
 readme = "README.md"
-requires-python = ">=3.11,<3.13"
+requires-python = ">=3.11"
 keywords = ["graphql", "strawberry", "sqlalchemy", "async"]
 classifiers = [
     "Development Status :: 3 - Alpha",
@@ -21,6 +21,8 @@ classifiers = [
     "Programming Language :: Python :: 3",
     "Programming Language :: Python :: 3.11",
     "Programming Language :: Python :: 3.12",
+    "Programming Language :: Python :: 3.13",
+    "Programming Language :: Python :: 3.14",
     "Topic :: Database",
     "Topic :: Internet :: WWW/HTTP",
     "Topic :: Software Development :: Libraries :: Python Modules",
@@ -30,7 +32,7 @@ dependencies = [
     "greenlet>=3.2.2",
     "graphql-core>=3.2.6",
     "sqlalchemy>=2.0.41",
-    "strawberry-graphql==0.211.1",
+    "strawberry-graphql==0.311.1",
 ]
 
 [project.urls]

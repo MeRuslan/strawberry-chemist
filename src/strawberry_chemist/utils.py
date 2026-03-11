@@ -1,12 +1,13 @@
 import dataclasses
+import sys
 
 from sqlalchemy.orm import DeclarativeMeta
 from strawberry import auto
 from strawberry.annotation import StrawberryAnnotation
 from strawberry import UNSET
 
-from strawberry.field import StrawberryField
-from strawberry.type import StrawberryContainer
+from strawberry.types.base import StrawberryContainer
+from strawberry.types.field import StrawberryField
 
 from strawberry_chemist.connection.base import SQLAlchemyBaseConnectionField
 from strawberry_chemist.fields.field import StrawberrySQLAlchemyField
@@ -19,6 +20,11 @@ def get_type_attr(type_, field_name):
     if attr is UNSET:
         attr = getattr(type_, "__dataclass_fields__", {}).get(field_name, UNSET)
     return attr
+
+
+def get_annotation_namespace(type_) -> dict:
+    module = sys.modules.get(type_.__module__)
+    return getattr(module, "__dict__", {})
 
 
 def unwrap_type(type_):
@@ -43,12 +49,20 @@ def is_container_type(obj):
 
 
 def get_annotations(cls):
+    namespace = get_annotation_namespace(cls)
     annotations = {}
     for c in reversed(cls.__mro__):
-        if "__annotations__" in c.__dict__:
+        class_annotations = getattr(c, "__annotations__", None)
+        if class_annotations:
             annotations.update(
-                {k: StrawberryAnnotation(v) for k, v in c.__annotations__.items()}
+                {
+                    k: StrawberryAnnotation.from_annotation(v, namespace=namespace)
+                    for k, v in class_annotations.items()
+                }
             )
+            for field_name, annotation in annotations.items():
+                if annotation and annotation.namespace is None:
+                    annotation.namespace = namespace
     return annotations
 
 

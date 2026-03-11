@@ -3,7 +3,7 @@ from functools import cached_property
 from typing import Any, List
 
 from sqlalchemy.orm import DeclarativeMeta
-from strawberry.arguments import StrawberryArgument
+from strawberry.types.arguments import StrawberryArgument
 from strawberry.types import Info
 
 from strawberry_chemist import utils
