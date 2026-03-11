@@ -392,3 +392,162 @@ async def test_v0_2_manual_filters_and_orders_contract() -> None:
     }
 
     await engine.dispose()
+
+
+@pytest.mark.asyncio
+async def test_v0_2_node_lookup_and_permissions_contract() -> None:
+    app = load_example_app("07_node_lookup_and_permissions")
+    schema = app.build_schema()
+    sdl = schema.as_str()
+
+    assert "postById(postId: ID!): Post" in sdl
+    assert "renamePost(postId: ID!, title: String!): Post" in sdl
+    assert " post:" not in sdl
+
+    engine, session_factory = app.create_engine_and_sessionmaker()
+    await app.prepare_database(engine)
+    ids = await app.seed_data(session_factory)
+
+    post_result = await schema.execute(
+        """
+        query($postId: ID!, $userId: ID!) {
+          postById(postId: $postId) {
+            title
+          }
+          mismatch: postById(postId: $userId) {
+            title
+          }
+        }
+        """,
+        variable_values={
+            "postId": f"Post_{ids['first_post']}",
+            "userId": f"User_{ids['alice']}",
+        },
+        context_value=app.AppContext(session_factory, current_user_id=None),
+    )
+
+    assert post_result.errors is None
+    assert post_result.data == {
+        "postById": {"title": "Draft one"},
+        "mismatch": None,
+    }
+
+    rename_result = await schema.execute(
+        """
+        mutation($postId: ID!) {
+          renamePost(postId: $postId, title: "Renamed draft") {
+            title
+          }
+        }
+        """,
+        variable_values={"postId": f"Post_{ids['first_post']}"},
+        context_value=app.AppContext(session_factory, current_user_id=ids["alice"]),
+    )
+
+    assert rename_result.errors is None
+    assert rename_result.data == {
+        "renamePost": {"title": "Renamed draft"},
+    }
+
+    denied_result = await schema.execute(
+        """
+        mutation($postId: ID!) {
+          renamePost(postId: $postId, title: "Nope") {
+            title
+          }
+        }
+        """,
+        variable_values={"postId": f"Post_{ids['first_post']}"},
+        context_value=app.AppContext(session_factory, current_user_id=ids["bob"]),
+    )
+
+    assert denied_result.data is None or denied_result.data["renamePost"] is None
+    assert denied_result.errors is not None
+
+    unauthenticated_result = await schema.execute(
+        """
+        mutation($postId: ID!) {
+          renamePost(postId: $postId, title: "Nope") {
+            title
+          }
+        }
+        """,
+        variable_values={"postId": f"Post_{ids['first_post']}"},
+        context_value=app.AppContext(session_factory, current_user_id=None),
+    )
+
+    assert (
+        unauthenticated_result.data is None
+        or unauthenticated_result.data["renamePost"] is None
+    )
+    assert unauthenticated_result.errors is not None
+
+    await engine.dispose()
+
+
+@pytest.mark.asyncio
+async def test_v0_2_nested_pagination_arguments_contract() -> None:
+    app = load_example_app("08_nested_pagination_arguments")
+    engine, session_factory = app.create_engine_and_sessionmaker()
+    await app.prepare_database(engine)
+    await app.seed_data(session_factory)
+    schema = app.build_schema()
+
+    result = await schema.execute(
+        """
+        query {
+          books(pagination: {first: 2}) {
+            edges {
+              node {
+                title
+                year
+              }
+            }
+            pageInfo {
+              hasNextPage
+              hasPreviousPage
+            }
+          }
+        }
+        """,
+        context_value=app.AppContext(session_factory),
+    )
+
+    assert result.errors is None
+    assert result.data == {
+        "books": {
+            "edges": [
+                {"node": {"title": "The Hobbit", "year": 1937}},
+                {"node": {"title": "The Lord of the Rings", "year": 1954}},
+            ],
+            "pageInfo": {"hasNextPage": True, "hasPreviousPage": False},
+        }
+    }
+
+    result = await schema.execute(
+        """
+        query {
+          booksPage(pagination: {limit: 2, offset: 1}) {
+            items {
+              title
+              year
+            }
+            totalCount
+          }
+        }
+        """,
+        context_value=app.AppContext(session_factory),
+    )
+
+    assert result.errors is None
+    assert result.data == {
+        "booksPage": {
+            "items": [
+                {"title": "The Lord of the Rings", "year": 1954},
+                {"title": "The Left Hand of Darkness", "year": 1969},
+            ],
+            "totalCount": 3,
+        }
+    }
+
+    await engine.dispose()

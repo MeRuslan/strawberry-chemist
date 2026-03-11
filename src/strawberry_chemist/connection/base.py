@@ -1,4 +1,4 @@
-from dataclasses import asdict, astuple
+from dataclasses import astuple
 from functools import cached_property
 from typing import Any, List
 
@@ -12,12 +12,15 @@ from strawberry_chemist.fields.utils import drill_for_field_names
 from strawberry_chemist.filters import FilterDefinition
 from strawberry_chemist.gql_context import SQLAlchemyContext
 from strawberry_chemist.order import OrderDefinition
-from strawberry_chemist.pagination import StrawberrySQLAlchemyPaginationBase
-from strawberry_chemist.pagination.base import GenericPaginationReturnType
+from strawberry_chemist.pagination.base import (
+    GenericPaginationReturnType,
+    PaginationPolicy,
+    is_flat_pagination_policy,
+)
 
 
 class SQLAlchemyBaseConnectionField(StrawberrySQLAlchemyRelationField):
-    pagination: StrawberrySQLAlchemyPaginationBase
+    pagination: PaginationPolicy[Any, Any, Any]
     order: OrderDefinition = None
     filter: FilterDefinition = None
 
@@ -53,21 +56,17 @@ class SQLAlchemyBaseConnectionField(StrawberrySQLAlchemyRelationField):
         info.context.field_sub_selections[self].update(names)
 
         order, filters = None, None
-        if hasattr(self.pagination, "extract_pagination_kwargs"):
+        if is_flat_pagination_policy(self.pagination):
             pagination = self.pagination.extract_pagination_kwargs(kwargs)
-            loader_pagination = pagination
         else:
             pagination = kwargs.get(self.pagination.python_name)
-            loader_pagination = astuple(pagination)
+        loader_pagination = pagination
         if self.order:
             order = kwargs.get(self.order.python_name)
         if self.filter:
             filters = kwargs.get(self.filter.python_name)
 
-        if hasattr(self.pagination, "cache_key"):
-            p_tuple = self.pagination.cache_key(pagination)
-        else:
-            p_tuple = loader_pagination
+        p_tuple = self.pagination.cache_key(pagination)
         if self.order and hasattr(self.order, "cache_key"):
             o_tuple = self.order.cache_key(order)
             loader_order = order
@@ -78,7 +77,7 @@ class SQLAlchemyBaseConnectionField(StrawberrySQLAlchemyRelationField):
             f_tuple = self.filter.cache_key(filters)
             loader_filters = filters
         else:
-            f_tuple = tuple(asdict(filters).items()) if filters else None
+            f_tuple = tuple(filters.__dict__.items()) if filters else None
             loader_filters = f_tuple
         # if source is not None:
         result = await info.context.dataloader_container.get_dataloader(
@@ -98,7 +97,7 @@ class SQLAlchemyBaseConnectionField(StrawberrySQLAlchemyRelationField):
         # if self.filters:
         #     gql_arguments.append(self.filters.argument)
         if self.pagination:
-            if hasattr(self.pagination, "arguments"):
+            if is_flat_pagination_policy(self.pagination):
                 gql_arguments.extend(self.pagination.arguments)
             else:
                 gql_arguments.append(self.pagination.argument)

@@ -1,29 +1,43 @@
-from strawberry_chemist.pagination.base import StrawberrySQLAlchemyPaginationBase
+from strawberry_chemist.pagination.base import (
+    CountedPaginationPolicy,
+    FlatPaginationPolicy,
+    GenericPaginationReturnType,
+    NestedPaginationPolicy,
+    PageInputType,
+    PaginationPolicy,
+    PaginationResultType,
+    is_flat_pagination_policy,
+)
 from strawberry_chemist.pagination.cursor import (
+    Connection,
     CursorPagination,
     CursorPaginationInput,
-    RelayConnection as Connection,
+    Edge,
+    PageInfo,
     RelayConnection,
-    StrawberrySQLAlchemyCursorPagination,
 )
 from strawberry_chemist.pagination.limit_offset import (
+    LimitOffsetPaginationInput,
     OffsetConnection,
     OffsetPagination,
-    StrawberrySQLAlchemyLimitOffsetPagination,
-    LimitOffsetPaginationInput,
-    LimitOffsetPaginationOutput,
 )
 
 __all__ = [
-    "StrawberrySQLAlchemyPaginationBase",
-    "StrawberrySQLAlchemyLimitOffsetPagination",
+    "PaginationPolicy",
+    "FlatPaginationPolicy",
+    "NestedPaginationPolicy",
+    "CountedPaginationPolicy",
+    "PageInputType",
+    "GenericPaginationReturnType",
+    "PaginationResultType",
+    "is_flat_pagination_policy",
     "Connection",
+    "RelayConnection",
+    "PageInfo",
+    "Edge",
     "CursorPagination",
-    "LimitOffsetPaginationOutput",
-    "LimitOffsetPaginationInput",
     "CursorPaginationInput",
     "OffsetConnection",
     "OffsetPagination",
-    "RelayConnection",
-    "StrawberrySQLAlchemyCursorPagination",
+    "LimitOffsetPaginationInput",
 ]

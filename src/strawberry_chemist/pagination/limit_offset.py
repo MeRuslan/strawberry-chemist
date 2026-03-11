@@ -1,4 +1,6 @@
-from typing import List, Generic, Tuple
+from __future__ import annotations
+
+from typing import Any, Generic, TypeAlias
 
 import strawberry
 from sqlalchemy import func, select
@@ -7,10 +9,7 @@ from strawberry.annotation import StrawberryAnnotation
 from strawberry.arguments import StrawberryArgument
 from strawberry.types.nodes import SelectedField
 
-from strawberry_chemist.pagination.base import (
-    StrawberrySQLAlchemyPaginationBase,
-    GenericPaginationReturnType,
-)
+from strawberry_chemist.pagination.base import GenericPaginationReturnType
 
 DEFAULT_MAX_LIMIT = 20
 
@@ -22,51 +21,12 @@ class LimitOffsetPaginationInput:
 
 
 @strawberry.type
-class LimitOffsetPaginationOutput(Generic[GenericPaginationReturnType]):
-    objects: List[GenericPaginationReturnType]
-    count: int = 0
-
-
-@strawberry.type
 class OffsetConnection(Generic[GenericPaginationReturnType]):
-    items: List[GenericPaginationReturnType]
+    items: list[GenericPaginationReturnType]
     totalCount: int = 0
 
 
-class StrawberrySQLAlchemyLimitOffsetPagination(StrawberrySQLAlchemyPaginationBase):
-    def get_fields_from_typed_request(self, selected_fields: List[SelectedField]):
-        raise NotImplementedError
-
-    max_limit: int
-    argument_type = LimitOffsetPaginationInput
-
-    def __init__(
-        self,
-        max_limit: int = DEFAULT_MAX_LIMIT,
-        python_name: str = "pagination",
-        gql_name: str = "pagination",
-        default: LimitOffsetPaginationInput = LimitOffsetPaginationInput(
-            offset=0, limit=DEFAULT_MAX_LIMIT
-        ),
-    ):
-        self.max_limit = max_limit
-        super(StrawberrySQLAlchemyLimitOffsetPagination, self).__init__(
-            python_name=python_name, gql_name=gql_name, default=default
-        )
-
-    def paginate_query(self, query: Select, page: Tuple) -> Select:
-        offset, limit = page
-        limit = min(limit, self.max_limit)
-        limit = max(limit, 1)
-        offset = max(offset, 0)
-
-        stmt = query.limit(limit).offset(offset)
-        return stmt
-
-    def paginate_result(
-        self, result: List[GenericPaginationReturnType], count: int = -1
-    ) -> LimitOffsetPaginationOutput[GenericPaginationReturnType]:
-        return LimitOffsetPaginationOutput(objects=result, count=count)
+OffsetPageInput: TypeAlias = tuple[int, int] | LimitOffsetPaginationInput | None
 
 
 class OffsetPagination:
@@ -74,13 +34,24 @@ class OffsetPagination:
         self,
         default_limit: int = DEFAULT_MAX_LIMIT,
         max_limit: int = DEFAULT_MAX_LIMIT,
+        *,
+        nested: bool = False,
+        name: str = "pagination",
+        python_name: str | None = None,
     ):
         self.default_limit = default_limit
         self.max_limit = max_limit
+        self.nested = nested
+        self.graphql_name = name
+        self.python_name = python_name or name
         self.include_total_count = True
 
     @property
     def arguments(self) -> list[StrawberryArgument]:
+        if self.nested:
+            raise AttributeError(
+                "Nested offset pagination exposes a single `argument`."
+            )
         return [
             StrawberryArgument(
                 python_name="limit",
@@ -96,8 +67,23 @@ class OffsetPagination:
             ),
         ]
 
+    @property
+    def argument(self) -> StrawberryArgument:
+        if not self.nested:
+            raise AttributeError(
+                "Flat offset pagination exposes top-level `arguments`."
+            )
+        return StrawberryArgument(
+            python_name=self.python_name,
+            graphql_name=self.graphql_name,
+            type_annotation=StrawberryAnnotation(LimitOffsetPaginationInput | None),
+            default=strawberry.UNSET,
+        )
+
     @staticmethod
-    def get_fields_from_typed_request(selected_fields: List[SelectedField]):
+    def get_fields_from_typed_request(
+        selected_fields: list[SelectedField],
+    ) -> list[SelectedField]:
         items = [
             field for field in selected_fields[0].selections if field.name == "items"
         ]
@@ -105,15 +91,21 @@ class OffsetPagination:
             return []
         return items[0].selections
 
-    def extract_pagination_kwargs(self, kwargs: dict[str, int]) -> Tuple[int, int]:
+    def extract_pagination_kwargs(self, kwargs: dict[str, int]) -> tuple[int, int]:
         return kwargs.get("limit", self.default_limit), kwargs.get("offset", 0)
 
-    @staticmethod
-    def cache_key(page: Tuple[int, int]) -> Tuple[int, int]:
-        return page
+    def normalize_page(self, page: OffsetPageInput) -> tuple[int, int]:
+        if page is None:
+            return self.default_limit, 0
+        if isinstance(page, tuple):
+            return page
+        return page.limit, page.offset
 
-    def paginate_query(self, query: Select, page: Tuple[int, int]) -> Select:
-        limit, offset = page
+    def cache_key(self, page: OffsetPageInput) -> tuple[int, int]:
+        return self.normalize_page(page)
+
+    def paginate_query(self, query: Select, page: OffsetPageInput) -> Select:
+        limit, offset = self.normalize_page(page)
         limit = min(limit, self.max_limit)
         limit = max(limit, 1)
         offset = max(offset, 0)
@@ -125,9 +117,9 @@ class OffsetPagination:
 
     def paginate_result(
         self,
-        result: List[GenericPaginationReturnType],
+        result: list[GenericPaginationReturnType],
         *,
         total_count: int = 0,
-        **_: int,
+        **_: Any,
     ) -> OffsetConnection[GenericPaginationReturnType]:
         return OffsetConnection(items=result, totalCount=total_count)

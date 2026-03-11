@@ -30,8 +30,14 @@ from .order import (
     order,
     order_field,
 )
-from .pagination import Connection, CursorPagination, OffsetConnection, OffsetPagination
-from .relay import Node, node_field
+from .pagination import (
+    Connection,
+    CursorPagination,
+    OffsetConnection,
+    OffsetPagination,
+    PaginationPolicy,
+)
+from .relay import Node, node_field, node_lookup
 
 __all__ = [
     # "auth",
@@ -71,10 +77,12 @@ __all__ = [
     "NullsOrder",
     "Connection",
     "OffsetConnection",
+    "PaginationPolicy",
     "CursorPagination",
     "OffsetPagination",
     "Node",
     "node_field",
+    "node_lookup",
     "extensions",
     # "fields",
     # "mutations",

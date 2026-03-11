@@ -12,6 +12,7 @@ from strawberry_chemist.relay.public import (
     get_node_definition,
     iter_node_definitions,
     node_field,
+    node_lookup,
     register_node_type,
     resolve_node,
 )
@@ -31,6 +32,7 @@ __all__ = [
     "get_node_definition",
     "iter_node_definitions",
     "node_field",
+    "node_lookup",
     "register_node_type",
     "resolve_node",
 ]

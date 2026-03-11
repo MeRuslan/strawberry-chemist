@@ -1,12 +1,15 @@
 from __future__ import annotations
 
+import inspect as pyinspect
 from dataclasses import dataclass
+from functools import wraps
 from typing import Annotated, Any, Optional, Protocol, Sequence, Union, cast
 from urllib.parse import quote, unquote
 
 import strawberry
 from sqlalchemy import and_, inspect as sa_inspect, select
 from sqlalchemy.orm import Mapper
+from strawberry import BasePermission
 from strawberry.types import Info
 
 from strawberry_chemist.fields.field import field
@@ -207,6 +210,14 @@ def _candidate_definitions(
     )
 
 
+def _node_types_for_model(model: type[Any]) -> tuple[type[Any], ...]:
+    return tuple(
+        definition.graphql_type
+        for definition in iter_node_definitions()
+        if issubclass(definition.model, model)
+    )
+
+
 def decode_node_token(
     token: str,
     *,
@@ -287,6 +298,112 @@ def node_field(
     return strawberry.field(resolver=resolver, name=name)
 
 
+def node_lookup(
+    *,
+    model: type[Any],
+    id_name: str = "id",
+    node_param_name: str = "node",
+    name: Optional[str] = None,
+    id_nullable: bool = False,
+    permission_classes: Optional[Sequence[type[BasePermission]]] = None,
+    node_permission_classes: Optional[Sequence[type[BasePermission]]] = None,
+    description: Optional[str] = None,
+    deprecation_reason: Optional[str] = None,
+    directives: Sequence[object] = (),
+):
+    def decorator(resolver: Any):
+        original_signature = pyinspect.signature(resolver)
+        original_parameters = list(original_signature.parameters.values())
+        parameter_names = {parameter.name for parameter in original_parameters}
+
+        if "info" not in parameter_names:
+            raise TypeError("node_lookup resolver must declare an 'info' parameter")
+        if node_param_name not in parameter_names:
+            raise TypeError(
+                f"node_lookup resolver must declare a '{node_param_name}' parameter"
+            )
+        if id_name in parameter_names and id_name != node_param_name:
+            raise TypeError(
+                f"node_lookup id_name '{id_name}' conflicts with an existing resolver parameter"
+            )
+
+        id_annotation: Any = Optional[strawberry.ID] if id_nullable else strawberry.ID
+        id_default = None if id_nullable else pyinspect.Parameter.empty
+        id_parameter = pyinspect.Parameter(
+            name=id_name,
+            kind=pyinspect.Parameter.POSITIONAL_OR_KEYWORD,
+            default=id_default,
+            annotation=id_annotation,
+        )
+        wrapper_parameters = [
+            id_parameter if parameter.name == node_param_name else parameter
+            for parameter in original_parameters
+        ]
+        wrapper_signature = original_signature.replace(parameters=wrapper_parameters)
+
+        @wraps(resolver)
+        async def wrapper(*args: Any, **kwargs: Any) -> Any:
+            bound = wrapper_signature.bind_partial(*args, **kwargs)
+            resolver_arguments = dict(bound.arguments)
+            info = resolver_arguments.get("info")
+            if info is None:
+                raise TypeError("node_lookup resolver was called without 'info'")
+
+            token = resolver_arguments.pop(id_name, None)
+            node = None
+            if token is not None:
+                candidate_types = _node_types_for_model(model)
+                if not candidate_types:
+                    raise ValueError(
+                        f"No @node types are registered for model {model.__name__}"
+                    )
+                try:
+                    node = await resolve_node(
+                        info, token, allowed_types=candidate_types
+                    )
+                except ValueError:
+                    node = None
+
+            resolver_arguments[node_param_name] = node
+            permission_kwargs = {
+                key: value for key, value in resolver_arguments.items() if key != "self"
+            }
+            for permission_class in node_permission_classes or ():
+                permission = permission_class()
+                has_permission = permission.has_permission(node, **permission_kwargs)
+                if pyinspect.isawaitable(has_permission):
+                    has_permission = await has_permission
+                if has_permission:
+                    continue
+                raise PermissionError(getattr(permission, "message", None))
+
+            result = resolver(**resolver_arguments)
+            if pyinspect.isawaitable(result):
+                return await result
+            return result
+
+        wrapper_fn: Any = wrapper
+        wrapper_fn.__signature__ = wrapper_signature
+        wrapper_fn.__annotations__ = {
+            parameter.name: parameter.annotation
+            for parameter in wrapper_parameters
+            if parameter.annotation is not pyinspect.Parameter.empty
+        }
+        if original_signature.return_annotation is not pyinspect.Signature.empty:
+            wrapper_fn.__annotations__["return"] = original_signature.return_annotation
+
+        return strawberry.field(
+            resolver=wrapper_fn,
+            name=name,
+            description=description,
+            permission_classes=list(permission_classes or ()),
+            deprecation_reason=deprecation_reason,
+            directives=tuple(directives),
+        )
+
+    return decorator
+
+
 __all__ = [
     "DEFAULT_ID_CODEC",
     "IntRegistryCodec",
@@ -301,6 +418,7 @@ __all__ = [
     "get_node_definition",
     "iter_node_definitions",
     "node_field",
+    "node_lookup",
     "register_node_type",
     "resolve_node",
 ]
