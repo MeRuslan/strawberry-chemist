@@ -47,7 +47,7 @@ def get_all_subclasses(cls) -> List[Type]:
 def node_type_to_int_bijection() -> frozenbidict:
     sub_cls = get_all_subclasses(Node)
     global sqla_model_registry
-    bi_dict = MutableBidict(sqla_model_registry)
+    bi_dict = MutableBidict(sqla_model_registry or {})
     for cls in sub_cls:
         if not hasattr(cls, "_container_type"):
             continue

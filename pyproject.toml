@@ -10,6 +10,7 @@ readme = "README.md"
 requires-python = ">=3.11,<3.13"
 dependencies = [
     "bidict>=0.23.1",
+    "greenlet>=3.2.2",
     "graphql-core>=3.2.6",
     "sqlalchemy>=2.0.41",
     "strawberry-graphql==0.211.1",
@@ -32,3 +33,8 @@ packages = ["src/strawberry_sqlalchemy"]
 
 [tool.pytest.ini_options]
 testpaths = ["tests"]
+addopts = '-m "not psql"'
+asyncio_mode = "auto"
+markers = [
+    "psql: requires PostgreSQL test dependencies and a running PostgreSQL service",
+]

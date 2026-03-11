@@ -369,6 +369,7 @@ source = { editable = "." }
 dependencies = [
     { name = "bidict" },
     { name = "graphql-core" },
+    { name = "greenlet" },
     { name = "sqlalchemy" },
     { name = "strawberry-graphql" },
 ]
@@ -389,6 +390,7 @@ dev = [
 requires-dist = [
     { name = "bidict", specifier = ">=0.23.1" },
     { name = "graphql-core", specifier = ">=3.2.6" },
+    { name = "greenlet", specifier = ">=3.2.2" },
     { name = "sqlalchemy", specifier = ">=2.0.41" },
     { name = "strawberry-graphql", specifier = "==0.211.1" },
 ]

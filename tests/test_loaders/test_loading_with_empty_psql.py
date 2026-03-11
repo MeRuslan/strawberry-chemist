@@ -8,8 +8,11 @@ from strawberry_sqlalchemy import relation_field
 from strawberry_sqlalchemy.loaders import (
     UnionLoadingStrategy,
     RelationshipLoader,
-    ValuesLoadingStrategy, ChildrenLoadingStrategy
+    ValuesLoadingStrategy,
+    ChildrenLoadingStrategy,
 )
+
+pytestmark = pytest.mark.psql
 
 
 class Base(DeclarativeBase): # noqa

@@ -12,8 +12,11 @@ from strawberry_sqlalchemy.loaders import (
     LoadViaParents,
     process_orm_results_for_dataload,
     RelationshipLoader,
-    ValuesLoadingStrategy, ChildrenLoadingStrategy
+    ValuesLoadingStrategy,
+    ChildrenLoadingStrategy,
 )
+
+pytestmark = pytest.mark.psql
 
 
 class Base(DeclarativeBase): # noqa
