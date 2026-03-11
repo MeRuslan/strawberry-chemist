@@ -1,4 +1,4 @@
-from strawberry_sqlalchemy.relay.base import (
+from strawberry_chemist.relay.base import (
     Node,
     parse_id,
     compose_id_using_instance,
@@ -10,8 +10,8 @@ from strawberry_sqlalchemy.relay.base import (
     convert_and_check_exists_node_id,
     parse_and_validate_id,
 )
-from strawberry_sqlalchemy.relay.exists_field import object_exists_field
-from strawberry_sqlalchemy.relay.object_field import object_field
+from strawberry_chemist.relay.exists_field import object_exists_field
+from strawberry_chemist.relay.object_field import object_field
 
 
 __all__ = [

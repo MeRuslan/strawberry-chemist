@@ -1,6 +1,6 @@
 # Database
 You'll have to spin up a database to run some tests, 
-sqtrawberry-sqlalchemy requires psql features.
+strawberry-chemist requires psql features.
 The easiest way to do this is to use docker:
 
     cd test
@@ -13,7 +13,7 @@ Then you can run the tests with:
 # Coverage
 To run the tests with coverage:
 
-    cd strawberry_sqlalchemy    
+    cd <repo-root>
     coverage run --source=. -m pytest
 
 Get the coverage report:

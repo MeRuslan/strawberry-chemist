@@ -6,13 +6,13 @@ from sqlalchemy import Integer, String, ForeignKey, SmallInteger, select
 from sqlalchemy.orm import declarative_base, relationship, Mapped, mapped_column
 from strawberry.types import Info
 
-import strawberry_sqlalchemy
-from strawberry_sqlalchemy.extentions import DataLoadersExtension, InfoCacheExtension
-from strawberry_sqlalchemy.gql_context import SQLAlchemyContext
-from strawberry_sqlalchemy.pagination import RelayConnection
-from strawberry_sqlalchemy.relay import NodeEdge, Node
-from strawberry_sqlalchemy.filters import StrawberrySQLAlchemyFilter
-from strawberry_sqlalchemy.order import StrawberrySQLAlchemyOrdering, OrderAD
+import strawberry_chemist
+from strawberry_chemist.extentions import DataLoadersExtension, InfoCacheExtension
+from strawberry_chemist.gql_context import SQLAlchemyContext
+from strawberry_chemist.pagination import RelayConnection
+from strawberry_chemist.relay import NodeEdge, Node
+from strawberry_chemist.filters import StrawberrySQLAlchemyFilter
+from strawberry_chemist.order import StrawberrySQLAlchemyOrdering, OrderAD
 
 Base = declarative_base()
 
@@ -35,18 +35,18 @@ class Person(Base):
     books: Mapped[List["Book"]] = relationship("Book", back_populates="author")
 
 
-@strawberry_sqlalchemy.type(model=Person)
+@strawberry_chemist.type(model=Person)
 class PersonNode(Node):
     name: str
-    books: RelayConnection["BookNode"] = strawberry_sqlalchemy.relay_connection_field()
+    books: RelayConnection["BookNode"] = strawberry_chemist.relay_connection_field()
 
 
-@strawberry_sqlalchemy.type(model=Book)
+@strawberry_chemist.type(model=Book)
 class BookNode(Node):
     title: str
     year: int
     author: Optional[PersonNode]
-    faulty_field: str = strawberry_sqlalchemy.field(
+    faulty_field: str = strawberry_chemist.field(
         sqlalchemy_name="title",
         post_processor=lambda source, result: f"{source.title} ({source.year})",
     )
@@ -95,18 +95,18 @@ book_order = StrawberrySQLAlchemyOrdering(
 @strawberry.type
 class Query(NodeEdge):
     people_connection: RelayConnection["PersonNode"] = (
-        strawberry_sqlalchemy.relay_connection_field()
+        strawberry_chemist.relay_connection_field()
     )
     books_connection: RelayConnection["BookNode"] = (
-        strawberry_sqlalchemy.relay_connection_field()
+        strawberry_chemist.relay_connection_field()
     )
 
     book_year_filter_connection: RelayConnection["BookNode"] = (
-        strawberry_sqlalchemy.relay_connection_field(filter=book_year_filter)
+        strawberry_chemist.relay_connection_field(filter=book_year_filter)
     )
 
     book_order_connection: RelayConnection["BookNode"] = (
-        strawberry_sqlalchemy.relay_connection_field(order=book_order)
+        strawberry_chemist.relay_connection_field(order=book_order)
     )
 
     @strawberry.field

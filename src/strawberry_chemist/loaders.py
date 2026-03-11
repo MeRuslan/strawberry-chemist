@@ -33,12 +33,12 @@ from sqlalchemy.orm import (
 from sqlalchemy.sql import Values, visitors
 from strawberry.dataloader import DataLoader
 
-from strawberry_sqlalchemy.connection.base import SQLAlchemyBaseConnectionField
-from strawberry_sqlalchemy.fields.field import (
+from strawberry_chemist.connection.base import SQLAlchemyBaseConnectionField
+from strawberry_chemist.fields.field import (
     StrawberrySQLAlchemyField,
     StrawberrySQLAlchemyRelationField,
 )
-from strawberry_sqlalchemy.gql_context import context_var
+from strawberry_chemist.gql_context import context_var
 
 
 def generate_via_field_loader_fn(model: Any, field_name: str = "id"):

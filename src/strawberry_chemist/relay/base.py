@@ -12,15 +12,15 @@ from strawberry.arguments import StrawberryArgument
 from strawberry.field import StrawberryField
 from strawberry.types import Info
 
-import strawberry_sqlalchemy
-from strawberry_sqlalchemy.gql_context import SQLAlchemyContext
-from strawberry_sqlalchemy.relay.alphabet_manipilations import (
+import strawberry_chemist
+from strawberry_chemist.gql_context import SQLAlchemyContext
+from strawberry_chemist.relay.alphabet_manipilations import (
     base_alphabet_to_10,
     base_10_to_alphabet,
     LOWERCASE_CONVERSION_DATA,
     URL_CONVERSION_DATA,
 )
-from strawberry_sqlalchemy.relay.szudzik_int_bijection import (
+from strawberry_chemist.relay.szudzik_int_bijection import (
     elegant_pair,
     elegant_unpair,
 )
@@ -73,7 +73,7 @@ def node_type_to_int_bijection() -> frozenbidict:
                     message=f"sqlalchemy type {sqla_model} has a name that "
                     f"contains characters not in the conversion dict: {faulty_chars}"
                     f"please consider renaming the type, or resolving otherwise:"
-                    f" README.md#Model-names",
+                    f" LIMITATIONS.md#model-names",
                     category=UserWarning,
                 )
             key = base_alphabet_to_10(
@@ -168,7 +168,7 @@ def compose_id_using_class(source_type: Type, value: int) -> strawberry.ID:
 
 @strawberry.interface
 class Node:
-    id: strawberry.ID = strawberry_sqlalchemy.field(
+    id: strawberry.ID = strawberry_chemist.field(
         post_processor=compose_id_using_instance
     )
 

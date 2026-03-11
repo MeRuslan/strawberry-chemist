@@ -6,14 +6,14 @@ from sqlalchemy.orm import DeclarativeMeta
 from strawberry.arguments import StrawberryArgument
 from strawberry.types import Info
 
-from strawberry_sqlalchemy import utils
-from strawberry_sqlalchemy.fields.field import StrawberrySQLAlchemyRelationField
-from strawberry_sqlalchemy.fields.utils import drill_for_field_names
-from strawberry_sqlalchemy.filters import StrawberrySQLAlchemyFilterBase
-from strawberry_sqlalchemy.gql_context import SQLAlchemyContext
-from strawberry_sqlalchemy.order import StrawberrySQLAlchemyOrderingBase
-from strawberry_sqlalchemy.pagination import StrawberrySQLAlchemyPaginationBase
-from strawberry_sqlalchemy.pagination.base import GenericPaginationReturnType
+from strawberry_chemist import utils
+from strawberry_chemist.fields.field import StrawberrySQLAlchemyRelationField
+from strawberry_chemist.fields.utils import drill_for_field_names
+from strawberry_chemist.filters import StrawberrySQLAlchemyFilterBase
+from strawberry_chemist.gql_context import SQLAlchemyContext
+from strawberry_chemist.order import StrawberrySQLAlchemyOrderingBase
+from strawberry_chemist.pagination import StrawberrySQLAlchemyPaginationBase
+from strawberry_chemist.pagination.base import GenericPaginationReturnType
 
 
 class SQLAlchemyBaseConnectionField(StrawberrySQLAlchemyRelationField):

@@ -8,8 +8,8 @@ from strawberry import UNSET
 from strawberry.field import StrawberryField
 from strawberry.type import StrawberryContainer
 
-from strawberry_sqlalchemy.connection.base import SQLAlchemyBaseConnectionField
-from strawberry_sqlalchemy.fields.field import StrawberrySQLAlchemyField
+from strawberry_chemist.connection.base import SQLAlchemyBaseConnectionField
+from strawberry_chemist.fields.field import StrawberrySQLAlchemyField
 
 
 def get_type_attr(type_, field_name):

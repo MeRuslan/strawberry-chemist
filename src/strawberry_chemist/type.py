@@ -194,7 +194,7 @@ def get_fields(container_type: StrawberrySQLAlchemyType) -> list[StrawberryField
         field = get_field(container_type, field_name, field_annotation)
         fields[field_name] = field
 
-    # collect non-annotated strawberry-sqlalchemy fields
+    # collect non-annotated strawberry-chemist fields
     for field_name in dir(container_type.origin):
         if field_name in fields:
             continue

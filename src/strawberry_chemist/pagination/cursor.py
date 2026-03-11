@@ -7,7 +7,7 @@ from sqlalchemy.sql import Select
 from strawberry import UNSET
 from strawberry.types.nodes import SelectedField
 
-from strawberry_sqlalchemy.pagination.base import (
+from strawberry_chemist.pagination.base import (
     StrawberrySQLAlchemyPaginationBase,
     GenericPaginationReturnType,
 )

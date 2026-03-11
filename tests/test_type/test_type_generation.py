@@ -7,7 +7,7 @@ import strawberry
 from sqlalchemy import ForeignKey, Time, Interval, ARRAY, String
 from sqlalchemy.orm import DeclarativeBase, Mapped, mapped_column, relationship
 
-import strawberry_sqlalchemy
+import strawberry_chemist
 
 
 def test_raw_type():
@@ -19,7 +19,7 @@ def test_raw_type():
         int_field: Mapped[int] = mapped_column(primary_key=True)
         str_field: Mapped[str]
 
-    @strawberry_sqlalchemy.type(model=Class1)
+    @strawberry_chemist.type(model=Class1)
     class Node:
         int_field: int
         str_field: str
@@ -40,7 +40,7 @@ def test_type_mismatch():
             int_field: Mapped[int] = mapped_column(primary_key=True)
             str_field: Mapped[str]
 
-        @strawberry_sqlalchemy.type(model=Class5)
+        @strawberry_chemist.type(model=Class5)
         class Node:
             int_field: int
             str_field: int
@@ -64,7 +64,7 @@ def test_auto_scalars():
         time_field = mapped_column(Time, nullable=False)
         timedelta_field = mapped_column(Interval, nullable=False)
 
-    @strawberry_sqlalchemy.type(model=Class2)
+    @strawberry_chemist.type(model=Class2)
     class Node:
         int_field: strawberry.auto
         str_field: strawberry.auto
@@ -91,7 +91,7 @@ def test_auto_optional():
         int_field: Mapped[int] = mapped_column(primary_key=True)
         optional_str_field: Mapped[Optional[str]]
 
-    @strawberry_sqlalchemy.type(model=Class3)
+    @strawberry_chemist.type(model=Class3)
     class Node:
         int_field: strawberry.auto
         optional_str_field: strawberry.auto
@@ -116,12 +116,12 @@ def test_auto_nested_raises():
             class4_id: Mapped[int] = mapped_column(ForeignKey("class4.int_field"))
             class4: Mapped[Class4] = relationship(Class4)
 
-        @strawberry_sqlalchemy.type(model=Class4)
+        @strawberry_chemist.type(model=Class4)
         class Node:
             int_field: strawberry.auto
             optional_str_field: strawberry.auto
 
-        @strawberry_sqlalchemy.type(model=Class4Child)
+        @strawberry_chemist.type(model=Class4Child)
         class NodeChild:
             int_field: strawberry.auto
             class4: strawberry.auto
@@ -140,7 +140,7 @@ def test_auto_array_raises():
             int_field: Mapped[int] = mapped_column(primary_key=True)
             optional_str_field: Mapped[List[str]] = mapped_column(ARRAY(String))
 
-        @strawberry_sqlalchemy.type(model=Class4)
+        @strawberry_chemist.type(model=Class4)
         class Node:
             int_field: strawberry.auto
             optional_str_field: strawberry.auto
@@ -157,7 +157,7 @@ def test_scalar_graphql_resolver_is_not_awaitable():
         int_field: Mapped[int] = mapped_column(primary_key=True)
         str_field: Mapped[str]
 
-    @strawberry_sqlalchemy.type(model=Class6)
+    @strawberry_chemist.type(model=Class6)
     class Node:
         int_field: int
         str_field: str
@@ -187,7 +187,7 @@ def test_array_explicit():
         int_field: Mapped[int] = mapped_column(primary_key=True)
         optional_str_field: Mapped[List[str]] = mapped_column(ARRAY(String))
 
-    @strawberry_sqlalchemy.type(model=Class4)
+    @strawberry_chemist.type(model=Class4)
     class Node:
         int_field: strawberry.auto
         optional_str_field: List[str]

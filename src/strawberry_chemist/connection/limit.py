@@ -1,5 +1,5 @@
-from strawberry_sqlalchemy.connection.base import SQLAlchemyBaseConnectionField
-from strawberry_sqlalchemy.pagination import StrawberrySQLAlchemyLimitOffsetPagination
+from strawberry_chemist.connection.base import SQLAlchemyBaseConnectionField
+from strawberry_chemist.pagination import StrawberrySQLAlchemyLimitOffsetPagination
 
 default_max_limit = 20
 

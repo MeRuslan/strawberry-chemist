@@ -1,6 +1,6 @@
 import pytest
 
-from strawberry_sqlalchemy.gql_context import SQLAlchemyContext, context_var
+from strawberry_chemist.gql_context import SQLAlchemyContext, context_var
 from tests.db_fixtures.sqlite_fixtures import (
     mock_sqlite_sqla_session,
     sqlite_db_engine,

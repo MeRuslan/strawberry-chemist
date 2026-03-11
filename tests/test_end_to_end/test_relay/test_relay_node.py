@@ -7,17 +7,17 @@ from sqlalchemy import select, Column, Integer
 from strawberry.annotation import StrawberryAnnotation
 from strawberry.utils.logging import StrawberryLogger
 
-import strawberry_sqlalchemy
-from strawberry_sqlalchemy import relay
-from strawberry_sqlalchemy.relay import NodeEdge, Node
-from strawberry_sqlalchemy.relay.base import (
+import strawberry_chemist
+from strawberry_chemist import relay
+from strawberry_chemist.relay import NodeEdge, Node
+from strawberry_chemist.relay.base import (
     compose_id_using_instance,
     node_type_to_int_bijection,
     compose_id_using_class,
     convert_and_check_exists_node_id,
 )
 from tests.test_end_to_end.test_relay.schema import BookType, Base, Book
-from strawberry_sqlalchemy.utils import unwrap_type
+from strawberry_chemist.utils import unwrap_type
 
 
 def test_simple_query(test_relay_client):
@@ -184,7 +184,7 @@ def test_relay_include_int_identity_model(monkeypatch):
         __int_identity__ = 1
         id = Column(Integer, primary_key=True)
 
-    @strawberry_sqlalchemy.type(model=ModelWithIntIdentity)
+    @strawberry_chemist.type(model=ModelWithIntIdentity)
     class ModelWithIntIdentityType(Node): ...
 
     node_type_to_int_bijection.cache_clear()

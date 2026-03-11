@@ -4,8 +4,8 @@ import pytest
 from sqlalchemy import ForeignKey, select
 from sqlalchemy.orm import DeclarativeBase, Mapped, mapped_column, relationship
 
-from strawberry_sqlalchemy import relation_field
-from strawberry_sqlalchemy.loaders import (
+from strawberry_chemist import relation_field
+from strawberry_chemist.loaders import (
     UnionLoadingStrategy,
     RelationshipLoader,
     ValuesLoadingStrategy,

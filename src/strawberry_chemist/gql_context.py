@@ -6,7 +6,7 @@ from sqlalchemy.ext.asyncio import AsyncSession
 
 
 if TYPE_CHECKING:
-    from strawberry_sqlalchemy.loaders import DataLoaderContainer
+    from strawberry_chemist.loaders import DataLoaderContainer
 
 
 @asynccontextmanager

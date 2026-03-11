@@ -11,9 +11,9 @@ from sqlalchemy.orm import (
     joinedload,
 )
 
-from strawberry_sqlalchemy import relation_field
-from strawberry_sqlalchemy.filters.pre_filter import RuntimeFilter
-from strawberry_sqlalchemy.loaders import (
+from strawberry_chemist import relation_field
+from strawberry_chemist.filters.pre_filter import RuntimeFilter
+from strawberry_chemist.loaders import (
     UnionLoadingStrategy,
     LoadViaParents,
     process_orm_results_for_dataload,

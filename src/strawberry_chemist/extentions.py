@@ -2,8 +2,8 @@ from collections import defaultdict
 
 from strawberry.extensions import SchemaExtension
 
-from strawberry_sqlalchemy.gql_context import SQLAlchemyContext, context_var
-from strawberry_sqlalchemy.loaders import DataLoaderContainer
+from strawberry_chemist.gql_context import SQLAlchemyContext, context_var
+from strawberry_chemist.loaders import DataLoaderContainer
 
 
 class DataLoadersExtension(SchemaExtension):

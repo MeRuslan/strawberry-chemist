@@ -9,8 +9,8 @@ from sqlalchemy.ext.asyncio import (
     async_scoped_session,
 )
 
-from strawberry_sqlalchemy.gql_context import SQLAlchemyContext
-from strawberry_sqlalchemy.loaders import LoadViaParents, UnionLoadingStrategy
+from strawberry_chemist.gql_context import SQLAlchemyContext
+from strawberry_chemist.loaders import LoadViaParents, UnionLoadingStrategy
 
 
 @pytest.fixture(scope="session")

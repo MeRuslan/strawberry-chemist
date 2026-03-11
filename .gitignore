@@ -11,3 +11,8 @@ wheels/
 
 .hypothesis
 .coverage
+.mypy_cache/
+.pre-commit-cache/
+.pytest_cache/
+.ruff_cache/
+htmlcov/

@@ -6,10 +6,10 @@ from sqlalchemy.orm import declarative_base, Mapped, mapped_column
 from strawberry import BasePermission
 from strawberry.types import Info
 
-import strawberry_sqlalchemy
-from strawberry_sqlalchemy.extentions import DataLoadersExtension, InfoCacheExtension
-from strawberry_sqlalchemy.gql_context import SQLAlchemyContext
-from strawberry_sqlalchemy.relay import NodeEdge, Node, object_field
+import strawberry_chemist
+from strawberry_chemist.extentions import DataLoadersExtension, InfoCacheExtension
+from strawberry_chemist.gql_context import SQLAlchemyContext
+from strawberry_chemist.relay import NodeEdge, Node, object_field
 
 Base = declarative_base()
 
@@ -20,7 +20,7 @@ class Book(Base):
     title: Mapped[str] = mapped_column(String)
 
 
-@strawberry_sqlalchemy.type(model=Book)
+@strawberry_chemist.type(model=Book)
 class BookType(Node):
     title: str
 

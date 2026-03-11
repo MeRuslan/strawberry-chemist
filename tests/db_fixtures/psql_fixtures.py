@@ -12,7 +12,7 @@ from sqlalchemy.ext.asyncio import (
     AsyncSession,
 )
 
-from strawberry_sqlalchemy.gql_context import SQLAlchemyContext
+from strawberry_chemist.gql_context import SQLAlchemyContext
 
 logging.basicConfig()
 logger = logging.getLogger("custom logger")

@@ -7,7 +7,7 @@ from strawberry.annotation import StrawberryAnnotation
 from strawberry.arguments import StrawberryArgument
 from strawberry.type import StrawberryType
 
-# from strawberry_sqlalchemy.type import StrawberrySQLAlchemyType
+# from strawberry_chemist.type import StrawberrySQLAlchemyType
 from strawberry.types.nodes import SelectedField
 
 GenericPaginationReturnType = TypeVar("GenericPaginationReturnType")

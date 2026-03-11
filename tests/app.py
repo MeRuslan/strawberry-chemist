@@ -7,7 +7,7 @@ from strawberry.asgi import GraphQL as BaseGraphQL
 from strawberry.http import GraphQLHTTPResponse
 from strawberry.types import ExecutionResult
 
-from strawberry_sqlalchemy.gql_context import SQLAlchemyContext
+from strawberry_chemist.gql_context import SQLAlchemyContext
 
 
 class GraphQL(BaseGraphQL):

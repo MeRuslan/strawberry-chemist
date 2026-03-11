@@ -11,10 +11,10 @@ from strawberry.field import StrawberryField
 from strawberry.type import StrawberryOptional, StrawberryList
 from strawberry.types import Info
 
-from strawberry_sqlalchemy import utils
-from strawberry_sqlalchemy.fields.utils import drill_for_field_names
-from strawberry_sqlalchemy.filters.pre_filter import RuntimeFilter
-from strawberry_sqlalchemy.gql_context import SQLAlchemyContext, context_var
+from strawberry_chemist import utils
+from strawberry_chemist.fields.utils import drill_for_field_names
+from strawberry_chemist.filters.pre_filter import RuntimeFilter
+from strawberry_chemist.gql_context import SQLAlchemyContext, context_var
 
 
 def camel_case(s: str):

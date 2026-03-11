@@ -1,10 +1,10 @@
-from strawberry_sqlalchemy.pagination.base import StrawberrySQLAlchemyPaginationBase
-from strawberry_sqlalchemy.pagination.cursor import (
+from strawberry_chemist.pagination.base import StrawberrySQLAlchemyPaginationBase
+from strawberry_chemist.pagination.cursor import (
     CursorPaginationInput,
     RelayConnection,
     StrawberrySQLAlchemyCursorPagination,
 )
-from strawberry_sqlalchemy.pagination.limit_offset import (
+from strawberry_chemist.pagination.limit_offset import (
     StrawberrySQLAlchemyLimitOffsetPagination,
     LimitOffsetPaginationInput,
     LimitOffsetPaginationOutput,

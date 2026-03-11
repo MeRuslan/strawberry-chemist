@@ -3,7 +3,7 @@ from typing import List, Any, Callable, Union, TYPE_CHECKING
 from sqlalchemy.sql.elements import OperatorExpression, SQLColumnExpression
 
 if TYPE_CHECKING:
-    from strawberry_sqlalchemy.loaders import ConnectionLoader
+    from strawberry_chemist.loaders import ConnectionLoader
 
 SQLAExpressionOrBool = Union[SQLColumnExpression, OperatorExpression, bool]
 

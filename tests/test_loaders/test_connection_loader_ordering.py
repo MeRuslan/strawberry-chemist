@@ -3,7 +3,7 @@ from typing import Optional, Sequence
 from sqlalchemy import Integer, String
 from sqlalchemy.orm import DeclarativeBase, Mapped, mapped_column
 
-from strawberry_sqlalchemy.loaders import ConnectionLoader
+from strawberry_chemist.loaders import ConnectionLoader
 
 
 class Base(DeclarativeBase):
