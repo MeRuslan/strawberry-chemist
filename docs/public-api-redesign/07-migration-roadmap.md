@@ -16,6 +16,7 @@ What changes:
 - `post_processor` -> decorated functions
 - field helpers become more specialized and intention-revealing
 - filters and ordering get a proper declarative DSL plus explicit manual helpers for schema-preserving migrations
+- pagination gets a stable `PaginationPolicy` contract, with built-in flat and nested argument styles
 - relay IDs become configurable and readable by default
 
 ## 2. Recommended Release Phases
@@ -28,10 +29,12 @@ Ship these new APIs first:
 - `node`
 - `relationship`
 - `connection`
+- `PaginationPolicy`
 - `filter` / `filter_field`
 - `order` / `order_field`
 - `manual_filter` / `manual_order`
 - `node` / `node_field`
+- `node_lookup`
 - `extensions`
 
 ### Phase 2: Migrate Internal And Consumer Usage
@@ -53,6 +56,8 @@ Keep explicit migration examples for:
 - `StrawberrySQLAlchemyFilter`
 - `StrawberrySQLAlchemyOrdering`
 - `NodeEdge`
+- `object_field`
+- `get_by_id_field`
 - `extentions`
 
 ### Phase 3: Surface Freeze
@@ -128,6 +133,22 @@ books: RelayConnection[BookNode] = sc.relay_connection_field(order=book_order)
 
 ```python
 books: sc.Connection[BookNode] = sc.connection(order=BookOrder)
+```
+
+### Current
+
+```graphql
+books(pagination: { first: 20, after: "..." }) {
+  edges { node { title } }
+}
+```
+
+### Target
+
+```python
+books: sc.Connection[BookNode] = sc.connection(
+    pagination=sc.CursorPagination(nested=True),
+)
 ```
 
 ### Current

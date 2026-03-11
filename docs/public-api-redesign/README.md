@@ -83,9 +83,11 @@ The proposed stable API should revolve around these concepts:
 - `@strawberry_chemist.field(...)`: computed scalar fields from selected parent data.
 - `strawberry_chemist.relationship(...)`: relationship loading and relationship-backed computed fields.
 - `strawberry_chemist.connection(...)`: one connection API for root and relationship collections.
+- `strawberry_chemist.PaginationPolicy`: a stable protocol for connection pagination strategies.
 - `@strawberry_chemist.filter(...)` and `@strawberry_chemist.order(...)`: declarative public filter/order DSLs.
 - `strawberry_chemist.manual_filter(...)` and `strawberry_chemist.manual_order(...)`: explicit escape hatches when the app must keep a custom GraphQL input contract.
 - `strawberry_chemist.node_field()`: relay/node lookup without hardcoding `id`.
+- `strawberry_chemist.node_lookup(...)`: inject a looked-up ORM node into a field or mutation from a relay ID argument.
 - `strawberry_chemist.extensions()`: the package-owned schema extensions bundle.
 - minimal context protocol instead of a mandatory framework base class.
 

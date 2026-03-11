@@ -210,7 +210,53 @@ and_(
 
 No hardcoded `.id` access in the public relay implementation.
 
-## 11. Keep Relay Optional
+## 11. Node Lookup Decorator
+
+Many applications need more than the root `node(id: ...)` field.
+
+They often have mutations and targeted query fields that should:
+
+- accept a relay/node ID argument
+- load the ORM object for a specific model or model family
+- inject that object into the resolver
+- optionally run permission checks after the object is loaded
+
+That should be a first-class public helper instead of repeated boilerplate.
+
+Recommended API:
+
+```python
+@sc.node_lookup(
+    model=Post,
+    id_name="post_id",
+    node_param_name="post",
+    permission_classes=[IsAuthenticated],
+    node_permission_classes=[IsPostAuthor],
+)
+async def save_post(self, info: Info, post: Post | None, post_input: PostInput) -> PostNode:
+    ...
+```
+
+Recommended behavior:
+
+- add an ID argument named by `id_name`
+- decode using the configured node IDs and codecs from registered `@sc.node(...)` types
+- only accept node IDs whose registered model matches `model` or a subclass of it
+- inject the loaded ORM object into `node_param_name`
+- inject `None` when the node does not exist or the ID does not match the model
+- run `node_permission_classes` after loading and before resolver execution
+
+The simpler case should stay terse:
+
+```python
+@sc.node_lookup(model=User, id_name="user_id", node_param_name="user")
+async def block_user(self, info: Info, user: User | None) -> bool:
+    ...
+```
+
+This should replace both `object_field(...)` and `get_by_id_field(...)` in the old surface.
+
+## 12. Keep Relay Optional
 
 Users who do not need relay should still be able to use:
 

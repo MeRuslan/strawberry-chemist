@@ -18,6 +18,9 @@ Stable exports:
 - `connection`
 - `Connection`
 - `OffsetConnection` or `OffsetPage`
+- `PaginationPolicy`
+- `CursorPagination`
+- `OffsetPagination`
 - `filter`
 - `filter_field`
 - `FilterContext`
@@ -38,6 +41,7 @@ Stable exports:
 - `NullsOrder`
 - `Node`
 - `node_field`
+- `node_lookup`
 - `relay`
 - `extensions`
 
@@ -59,8 +63,6 @@ These should not be presented as the preferred public surface:
 - `StrawberrySQLAlchemyRelationField`
 - `StrawberrySQLAlchemyFilter`
 - `StrawberrySQLAlchemyOrdering`
-- `StrawberrySQLAlchemyCursorPagination`
-- `StrawberrySQLAlchemyLimitOffsetPagination`
 - `ConnectionLoader`
 - `DataLoaderContainer`
 - `context_var`
@@ -84,6 +86,7 @@ They may remain importable for compatibility or testing, but they should not anc
 | `StrawberrySQLAlchemyFilter` | `@filter` + `filter_field`, or `manual_filter` when schema shape must stay custom | polished declarative DSL plus explicit manual escape hatch |
 | `StrawberrySQLAlchemyOrdering` | `@order` + `order_field`, or `manual_order` when schema shape must stay custom | polished declarative DSL plus explicit manual escape hatch |
 | `NodeEdge` | `node_field()` | clearer relay root field story |
+| `object_field` / `get_by_id_field` | `node_lookup()` | one stable decorator for loading a node into a resolver |
 | `extentions` | `extensions` | spelling fix; remove the typo alias |
 | `input()` / `mutation()` | experimental or removed | not mature enough for stable public docs |
 

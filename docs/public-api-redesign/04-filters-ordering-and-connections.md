@@ -308,9 +308,35 @@ author_books: sc.Connection[BookNode] = sc.connection(source="books")
 
 ## 10. Pagination Configuration
 
-The public surface should not require users to construct pagination implementation classes.
+The connection field should accept a stable pagination policy object.
 
-Recommended policy objects:
+Built-in policies:
+
+- `sc.CursorPagination(...)`
+- `sc.OffsetPagination(...)`
+
+Both should implement the same public `sc.PaginationPolicy` contract.
+
+Recommended common protocol:
+
+```python
+class PaginationPolicy(Protocol):
+    def get_fields_from_typed_request(
+        self,
+        selected_fields: list[SelectedField],
+    ) -> list[SelectedField]: ...
+
+    def cache_key(self, page: Any) -> Hashable: ...
+    def paginate_query(self, query: Select, page: Any) -> Select: ...
+    def paginate_result(self, result: list[Any], **kwargs: Any) -> Any: ...
+```
+
+Policies can expose arguments in either of two shapes:
+
+- flat field-level arguments through `arguments`
+- one nested input argument through `argument`
+
+Flat cursor arguments:
 
 ```python
 books: sc.Connection[BookNode] = sc.connection(
@@ -318,11 +344,45 @@ books: sc.Connection[BookNode] = sc.connection(
 )
 ```
 
+GraphQL:
+
+```graphql
+books(first: 20, after: "...")
+```
+
+Nested cursor argument for migration compatibility:
+
 ```python
-books: sc.OffsetConnection[BookNode] = sc.connection(
-    pagination=sc.OffsetPagination(default_limit=20, max_limit=100),
+books: sc.Connection[BookNode] = sc.connection(
+    pagination=sc.CursorPagination(max_limit=50, nested=True),
 )
 ```
+
+GraphQL:
+
+```graphql
+books(pagination: { first: 20, after: "..." })
+```
+
+Offset pagination follows the same pattern:
+
+```python
+books_page: sc.OffsetConnection[BookNode] = sc.connection(
+    pagination=sc.OffsetPagination(default_limit=20, max_limit=100),
+)
+
+legacy_books_page: sc.OffsetConnection[BookNode] = sc.connection(
+    pagination=sc.OffsetPagination(
+        default_limit=20,
+        max_limit=100,
+        nested=True,
+    ),
+)
+```
+
+This keeps the default public API flat and modern while still letting migration
+projects retain an existing nested `pagination:` argument without inventing a
+separate manual-pagination DSL.
 
 Default recommendation:
 
