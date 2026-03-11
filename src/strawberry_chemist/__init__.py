@@ -4,7 +4,7 @@ if not hasattr(strawberry, "Info"):
     setattr(strawberry, "Info", strawberry.types.Info)
 
 from .type import input, mutation, node, type
-from .fields.field import attr, field, relationship
+from .fields.field import RelationshipLoad, attr, field, relationship
 from .connection import connection
 from .extensions import extensions
 from . import relay
@@ -44,6 +44,7 @@ __all__ = [
     "attr",
     "relationship",
     "field",
+    "RelationshipLoad",
     "filter",
     "filter_field",
     "FilterContext",

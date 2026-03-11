@@ -1,6 +1,6 @@
 from functools import cached_property
 from re import sub
-from typing import Any, Callable, Dict, Iterable, List, Optional, Sequence
+from typing import Any, Dict, Iterable, List, Literal, Optional, Sequence, TypeAlias
 
 from graphql.pyutils import is_awaitable
 from sqlalchemy import inspect
@@ -20,6 +20,9 @@ from strawberry_chemist.gql_context import SQLAlchemyContext, context_var
 def camel_case(s: str):
     s = sub(r"(_|-)+", " ", s).title().replace(" ", "")
     return "".join([s[0].lower(), s[1:]])
+
+
+RelationshipLoad: TypeAlias = Literal["selected", "full"]
 
 
 def _reject_legacy_kwargs(
@@ -442,7 +445,7 @@ def relationship(
     *,
     where=None,
     select=None,
-    load: str = "selected",
+    load: RelationshipLoad = "selected",
     name=None,
     default=UNSET,
     **kwargs,
