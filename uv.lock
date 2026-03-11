@@ -1407,7 +1407,7 @@ requires-dist = [
     { name = "graphql-core", specifier = ">=3.2.6" },
     { name = "greenlet", specifier = ">=3.2.2" },
     { name = "sqlalchemy", specifier = ">=2.0.41" },
-    { name = "strawberry-graphql", specifier = "==0.311.1" },
+    { name = "strawberry-graphql", specifier = "~=0.311.1" },
 ]
 
 [package.metadata.requires-dev]
