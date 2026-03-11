@@ -38,6 +38,7 @@ Homepage = "https://github.com/MeRuslan/strawberry-chemist"
 Repository = "https://github.com/MeRuslan/strawberry-chemist"
 Issues = "https://github.com/MeRuslan/strawberry-chemist/issues"
 Changelog = "https://github.com/MeRuslan/strawberry-chemist/blob/main/CHANGELOG.md"
+Documentation = "https://meruslan.github.io/strawberry-chemist/"
 
 [dependency-groups]
 dev = [
@@ -45,6 +46,7 @@ dev = [
     "asyncpg>=0.30.0",
     "build>=1.2.2.post1",
     "httpx>=0.28.1",
+    "mkdocs>=1.6.1",
     "mypy>=1.15.0",
     "pre-commit>=4.2.0",
     "psycopg>=3.2.9",

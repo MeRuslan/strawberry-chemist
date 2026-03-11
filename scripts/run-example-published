@@ -1,0 +1,40 @@
+#!/usr/bin/env bash
+set -euo pipefail
+
+repo_root="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)"
+example_arg="${1:-}"
+
+if [[ -z "$example_arg" ]]; then
+  echo "usage: scripts/run-example-published <example-name-or-path>" >&2
+  exit 1
+fi
+
+if [[ -d "$repo_root/examples/v0_2_api/$example_arg" ]]; then
+  project_dir="$repo_root/examples/v0_2_api/$example_arg"
+elif [[ -d "$repo_root/$example_arg" ]]; then
+  project_dir="$repo_root/$example_arg"
+else
+  echo "example project not found: $example_arg" >&2
+  exit 1
+fi
+
+sync_args=(
+  sync
+  --project "$project_dir"
+  --no-sources
+)
+
+if [[ -n "${STRAWBERRY_CHEMIST_FIND_LINKS:-}" ]]; then
+  sync_args+=(--find-links "$STRAWBERRY_CHEMIST_FIND_LINKS")
+fi
+
+uv "${sync_args[@]}"
+
+if [[ -f "$project_dir/test_contract.py" ]]; then
+  uv run --project "$project_dir" pytest "$project_dir/test_contract.py"
+elif [[ -f "$project_dir/smoke_test.py" ]]; then
+  uv run --project "$project_dir" python "$project_dir/smoke_test.py"
+else
+  echo "no test entrypoint found in $project_dir" >&2
+  exit 1
+fi

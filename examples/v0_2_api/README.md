@@ -1,17 +1,17 @@
 # 0.2.0 API contract examples
 
-These examples are forward-looking consumer projects for the redesigned
-`strawberry-chemist` 0.2.0 public API.
+These examples are standalone consumer projects for the `strawberry-chemist`
+`0.2.0` public API.
 
-They are intentionally TDD-oriented:
+Each example:
 
-- each example pins `strawberry-chemist==0.2.0`
-- each example has a `test_contract.py` file that defines the intended behavior
-- the tests are expected to be meaningful only after the 0.2.0 API exists
-- every example uses real SQLAlchemy models backed by SQLite via `aiosqlite`
+- pins `strawberry-chemist==0.2.0`
+- includes a local `tool.uv.sources` override pointing at the current checkout
+- has a `test_contract.py` file defining the intended behavior
+- uses real SQLAlchemy models backed by SQLite via `aiosqlite`
 
-They are examples, and their contracts are exercised from the root package test
-suite in `tests/test_public_api/test_v0_2_contracts.py`.
+Their contracts are also exercised from the root package test suite in
+`tests/test_public_api/test_v0_2_contracts.py`.
 
 ## Coverage map
 
@@ -28,7 +28,7 @@ suite in `tests/test_public_api/test_v0_2_contracts.py`.
 
 ## Usage shape
 
-Each example can be verified in two ways.
+Each example can be verified in three ways.
 
 From the repo root, run the root acceptance suite:
 
@@ -36,15 +36,25 @@ From the repo root, run the root acceptance suite:
 uv run pytest -q tests/test_public_api/test_v0_2_contracts.py
 ```
 
-To run an example in isolation against a prepublish local build:
+To run an example in isolation against the current checkout:
+
+```bash
+scripts/run-example-local 01_types_and_fields
+```
+
+To run an example against the pinned published package instead of the checkout:
+
+```bash
+scripts/run-example-published 01_types_and_fields
+```
+
+To run published-mode against a locally built distribution artifact:
 
 ```bash
 uv run python -m build --outdir /tmp/strawberry-chemist-dist
-uv sync --project examples/v0_2_api/01_types_and_fields \
-  --find-links /tmp/strawberry-chemist-dist
-uv run --project examples/v0_2_api/01_types_and_fields \
-  pytest examples/v0_2_api/01_types_and_fields/test_contract.py
+STRAWBERRY_CHEMIST_FIND_LINKS=/tmp/strawberry-chemist-dist \
+  scripts/run-example-published 01_types_and_fields
 ```
 
-The examples intentionally repeat a little boilerplate so that each one can be
+The examples intentionally repeat a little boilerplate so that each one can
 read on its own without jumping between shared helper modules.
