@@ -11,6 +11,8 @@ It covers:
 - required filter arguments
 - custom SQL query modifiers that can add joins and grouping
 
-The main point is migration safety: applications should be able to adopt the
-new `sc.connection(...)` field while keeping an existing public GraphQL schema
-shape when needed.
+The main point is migration safety: applications should be able to adopt
+`sc.connection(...)` while keeping an existing public GraphQL schema shape when
+needed.
+
+Run it in place with `make test`, `make schema`, or `make serve`.

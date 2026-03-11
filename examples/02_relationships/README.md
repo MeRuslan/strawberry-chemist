@@ -1,6 +1,6 @@
 # Relationships
 
-This example covers the redesigned relationship API.
+This example covers the public relationship API.
 
 It demonstrates:
 
@@ -9,5 +9,6 @@ It demonstrates:
 - relationship-backed computed fields
 - `load="full"` for transforms that need unrestricted model rows
 
-The main intent is to make the old `relation_field(..., post_processor=...)`
-shape feel like normal class code.
+The main intent is to make relationship fields read like normal class code.
+
+Run it in place with `make test`, `make schema`, or `make serve`.

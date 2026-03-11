@@ -1,6 +1,6 @@
 # strawberry-chemist
 
-Explicit GraphQL types. Smart SQLAlchemy loading, no N+1 anywhere.
+Explicit GraphQL types. Smart SQLAlchemy loading.
 
 - mapped fields
 - computed fields
@@ -43,6 +43,8 @@ class Book:
     def is_bookmarked(self, bookmarks: list[BookmarkModel]) -> bool:
         return bool(bookmarks)
 ```
+
+Note: `current_user_id` is application data; the package does not ship auth.
 
 Computed field from selected columns:
 

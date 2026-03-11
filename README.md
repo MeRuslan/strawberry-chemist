@@ -31,6 +31,26 @@ pip install strawberry-chemist
 
 ## What It Looks Like
 
+Server-scoped relationship-backed field:
+
+```python
+import strawberry_chemist as sc
+from strawberry_chemist.gql_context import context_var
+
+
+@sc.type(model=BookModel)
+class Book:
+    @sc.relationship(
+        "bookmarks",
+        where=lambda: BookmarkModel.user_id == context_var.get().current_user_id,
+        select=["id"],
+    )
+    def is_bookmarked(self, bookmarks: list[BookmarkModel]) -> bool:
+        return bool(bookmarks)
+```
+
+Note: `current_user_id` is application data; the package does not ship auth.
+
 Computed field from selected columns:
 
 ```python
@@ -59,26 +79,6 @@ class Author:
         pagination=sc.CursorPagination(max_limit=20),
     )
 ```
-
-Server-scoped relationship-backed field:
-
-```python
-import strawberry_chemist as sc
-from strawberry_chemist.gql_context import context_var
-
-
-@sc.type(model=BookModel)
-class Book:
-    @sc.relationship(
-        "bookmarks",
-        where=lambda: BookmarkModel.user_id == context_var.get().current_user_id,
-        select=["id"],
-    )
-    def is_bookmarked(self, bookmarks: list[BookmarkModel]) -> bool:
-        return bool(bookmarks)
-```
-Note: current_user_id is up to you to implement,
-the package doesn't ship auth.
 
 Your GraphQL context must provide a `get_session()` async context manager that
 returns a SQLAlchemy `AsyncSession`.
@@ -110,10 +110,17 @@ uv run mkdocs build --strict
 
 ## Runnable examples
 
+Each numbered example under `examples/` is self-contained. The root
+`example-*` commands below just delegate into that example's own `Makefile`.
+Each example is intentionally split into:
+
+- `db.py` for SQLAlchemy models and seeded database setup
+- `schema.py` for `AppContext`, GraphQL types, and `build_schema()`
+- `app.py` for the tiny runtime CLI that prints SDL or serves the schema
+
 Serve a seeded sample schema locally:
 
 ```bash
-uv sync --group dev
 make example-serve EXAMPLE=03_connections_filters_and_ordering PORT=8000
 ```
 
@@ -137,13 +144,22 @@ Print a sample schema:
 make example-schema EXAMPLE=03_connections_filters_and_ordering
 ```
 
+Run the same example directly from its own directory:
+
+```bash
+cd examples/03_connections_filters_and_ordering
+make test
+make schema
+make serve PORT=8000
+```
+
 If you want to force published-mode testing against a locally built
-distribution, point the script at a `build` output directory:
+distribution, point the published-mode flow at a `build` output directory:
 
 ```bash
 uv run python -m build --outdir /tmp/strawberry-chemist-dist
 STRAWBERRY_CHEMIST_FIND_LINKS=/tmp/strawberry-chemist-dist \
-  scripts/run-example-published 03_connections_filters_and_ordering
+  make example-test-published EXAMPLE=03_connections_filters_and_ordering
 ```
 
 ## API overview

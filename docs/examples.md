@@ -3,6 +3,15 @@
 The `examples/` projects are runnable contract examples for the public
 API.
 
+Each numbered example is self-contained. The repo-root `example-*` commands
+delegate into the example directory, and the example directory itself can be
+copied and run on its own with `make`.
+Each one keeps the same internal boundary:
+
+- `db.py` for SQLAlchemy models and seeded database setup
+- `schema.py` for `AppContext`, GraphQL types, and `build_schema()`
+- `app.py` for the runtime CLI that prints SDL or serves the schema
+
 ## Run against the current checkout
 
 ```bash
@@ -22,6 +31,22 @@ make example-test-published EXAMPLE=03_connections_filters_and_ordering
 This ignores the local source override and resolves the pinned published
 version instead.
 
+## Run inside an example directory
+
+```bash
+cd examples/03_connections_filters_and_ordering
+make test
+make schema
+make serve PORT=8000
+```
+
+These in-directory commands default to the pinned published package so the
+example still works after being copied out of the repository.
+
+When working inside the repository checkout and you want the current source
+tree instead, use `make test-local`, `make schema-local`, and
+`make serve-local`.
+
 ## Print or serve a sample schema
 
 Print an example SDL from the repo root:
@@ -33,7 +58,6 @@ make example-schema EXAMPLE=03_connections_filters_and_ordering
 Serve a seeded example locally:
 
 ```bash
-uv sync --group dev
 make example-serve EXAMPLE=03_connections_filters_and_ordering PORT=8000
 ```
 
@@ -43,7 +67,7 @@ PyPI, set `STRAWBERRY_CHEMIST_FIND_LINKS`:
 ```bash
 uv run python -m build --outdir /tmp/strawberry-chemist-dist
 STRAWBERRY_CHEMIST_FIND_LINKS=/tmp/strawberry-chemist-dist \
-  scripts/run-example-published 03_connections_filters_and_ordering
+  make example-test-published EXAMPLE=03_connections_filters_and_ordering
 ```
 
 ## Example index

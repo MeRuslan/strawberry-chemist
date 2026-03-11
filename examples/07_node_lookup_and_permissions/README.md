@@ -11,3 +11,5 @@ It covers:
 - field permission classes before lookup
 - post-load node permission classes after lookup
 - rejecting mismatched node IDs by returning `null`
+
+Run it in place with `make test`, `make schema`, or `make serve`.

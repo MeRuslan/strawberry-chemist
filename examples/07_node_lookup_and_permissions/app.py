@@ -1,159 +1,109 @@
 from __future__ import annotations
 
-from contextlib import asynccontextmanager
-from typing import Any, Optional
+import argparse
+import asyncio
+import sys
+from pathlib import Path
+from typing import Any
 
-import strawberry
-import strawberry_chemist as sc
-from sqlalchemy import ForeignKey, Integer, String
-from sqlalchemy.ext.asyncio import (
-    AsyncAttrs,
-    AsyncEngine,
-    AsyncSession,
-    async_sessionmaker,
-    create_async_engine,
-)
-from sqlalchemy.orm import DeclarativeBase, Mapped, mapped_column, relationship
-from strawberry import BasePermission
-from strawberry.types import Info
+from strawberry.asgi import GraphQL
+
+EXAMPLE_ROOT = Path(__file__).resolve().parent
+if str(EXAMPLE_ROOT) not in sys.path:
+    sys.path.insert(0, str(EXAMPLE_ROOT))
+
+from db import create_engine_and_sessionmaker, prepare_database, seed_data
+from schema import AppContext, build_context, build_schema
 
 
-class Base(AsyncAttrs, DeclarativeBase):
-    pass
+class ExampleGraphQL(GraphQL):
+    def __init__(self, schema: strawberry.Schema, *, context_factory: Any) -> None:
+        super().__init__(schema)
+        self._context_factory = context_factory
+
+    async def get_context(self, request: Any, response: Any) -> Any:
+        return await self._context_factory(request=request, response=response)
 
 
-class UserModel(Base):
-    __tablename__ = "users"
-
-    id: Mapped[int] = mapped_column(Integer, primary_key=True)
-    username: Mapped[str] = mapped_column(String(120), unique=True)
-    posts: Mapped[list["PostModel"]] = relationship(back_populates="author")
-
-
-class PostModel(Base):
-    __tablename__ = "posts"
-
-    id: Mapped[int] = mapped_column(Integer, primary_key=True)
-    author_id: Mapped[int] = mapped_column(ForeignKey("users.id"))
-    title: Mapped[str] = mapped_column(String(200))
-    author: Mapped[UserModel] = relationship(back_populates="posts")
-
-
-class AppContext:
-    def __init__(
-        self,
-        session_factory: async_sessionmaker[AsyncSession],
-        *,
-        current_user_id: int | None,
-    ):
-        self._session_factory = session_factory
-        self.current_user_id = current_user_id
-
-    @asynccontextmanager
-    async def get_session(self):
-        async with self._session_factory() as session:
-            yield session
-
-
-class IsAuthenticated(BasePermission):
-    message = "Authentication required"
-
-    async def has_permission(
-        self, source: Any, info: Info[AppContext, None], **kwargs
-    ) -> bool:
-        return info.context.current_user_id is not None
-
-
-class IsPostAuthor(BasePermission):
-    message = "Actor cannot modify this post"
-
-    async def has_permission(
-        self,
-        source: PostModel | None,
-        info: Info[AppContext, None],
-        **kwargs,
-    ) -> bool:
-        return source is not None and source.author_id == info.context.current_user_id
-
-
-@sc.node(model=UserModel)
-class User:
-    username: str
-
-
-@sc.node(model=PostModel)
-class Post:
-    title: str
-
-
-@strawberry.type
-class Query:
-    node = sc.node_field()
-
-    @sc.node_lookup(model=PostModel, id_name="post_id", node_param_name="post")
-    async def post_by_id(
-        self,
-        info: Info[AppContext, None],
-        post: PostModel | None,
-    ) -> Optional[Post]:
-        return post
-
-
-@strawberry.type
-class Mutation:
-    @sc.node_lookup(
-        model=PostModel,
-        id_name="post_id",
-        node_param_name="post",
-        permission_classes=[IsAuthenticated],
-        node_permission_classes=[IsPostAuthor],
-    )
-    async def rename_post(
-        self,
-        info: Info[AppContext, None],
-        post: PostModel | None,
-        title: str,
-    ) -> Optional[Post]:
-        if post is None:
-            return None
-        async with info.context.get_session() as session:
-            post.title = title
-            session.add(post)
-            await session.commit()
-            await session.refresh(post)
-        return post
-
-
-def create_engine_and_sessionmaker(
-    database_url: str = "sqlite+aiosqlite:///:memory:",
-) -> tuple[AsyncEngine, async_sessionmaker[AsyncSession]]:
-    engine = create_async_engine(database_url, echo=False)
-    session_factory = async_sessionmaker(engine, expire_on_commit=False)
+async def prepare_seeded_runtime() -> tuple[Any, Any]:
+    engine, session_factory = create_engine_and_sessionmaker()
+    await prepare_database(engine)
+    await seed_data(session_factory)
     return engine, session_factory
 
 
-async def prepare_database(engine: AsyncEngine) -> None:
-    async with engine.begin() as conn:
-        await conn.run_sync(Base.metadata.create_all)
+def print_schema() -> None:
+    print(build_schema().as_str())
 
 
-async def seed_data(
-    session_factory: async_sessionmaker[AsyncSession],
-) -> dict[str, int]:
-    async with session_factory() as session:
-        alice = UserModel(username="alice")
-        bob = UserModel(username="bob")
-        first = PostModel(author=alice, title="Draft one")
-        second = PostModel(author=bob, title="Draft two")
-        session.add_all([alice, bob, first, second])
-        await session.commit()
-        return {
-            "alice": alice.id,
-            "bob": bob.id,
-            "first_post": first.id,
-            "second_post": second.id,
-        }
+def serve_schema(
+    *,
+    host: str,
+    port: int,
+    request_id: str,
+    current_user_id: int | None,
+) -> None:
+    try:
+        import uvicorn
+    except ModuleNotFoundError as exc:
+        raise SystemExit("uvicorn is required; run `uv sync` first") from exc
+
+    engine, session_factory = asyncio.run(prepare_seeded_runtime())
+    schema = build_schema()
+
+    async def context_getter(*_args: Any, **_kwargs: Any) -> AppContext:
+        return build_context(
+            session_factory,
+            request_id=request_id,
+            current_user_id=current_user_id,
+        )
+
+    print(f"Serving on http://{host}:{port}")
+    try:
+        uvicorn.run(
+            ExampleGraphQL(schema, context_factory=context_getter),
+            host=host,
+            port=port,
+        )
+    finally:
+        asyncio.run(engine.dispose())
 
 
-def build_schema() -> strawberry.Schema:
-    return strawberry.Schema(query=Query, mutation=Mutation, extensions=sc.extensions())
+def build_parser() -> argparse.ArgumentParser:
+    parser = argparse.ArgumentParser(description="Run this example project.")
+    subparsers = parser.add_subparsers(dest="command", required=True)
+    subparsers.add_parser("print-schema", help="Print the example schema as SDL")
+
+    serve_parser = subparsers.add_parser(
+        "serve",
+        help="Serve the seeded example over GraphQL",
+    )
+    serve_parser.add_argument("--host", default="127.0.0.1")
+    serve_parser.add_argument("--port", type=int, default=8000)
+    serve_parser.add_argument("--request-id", default="dev-request")
+    serve_parser.add_argument("--current-user-id", type=int, default=None)
+    return parser
+
+
+def main() -> None:
+    parser = build_parser()
+    args = parser.parse_args()
+
+    if args.command == "print-schema":
+        print_schema()
+        return
+
+    if args.command == "serve":
+        serve_schema(
+            host=args.host,
+            port=args.port,
+            request_id=args.request_id,
+            current_user_id=args.current_user_id,
+        )
+        return
+
+    raise SystemExit(f"unsupported command: {args.command}")
+
+
+if __name__ == "__main__":
+    main()

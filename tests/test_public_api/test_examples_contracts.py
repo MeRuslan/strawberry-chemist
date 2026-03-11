@@ -16,13 +16,21 @@ EXAMPLES_ROOT = ROOT / "examples"
 def load_example_app(example_name: str):
     clear_node_registry()
     module_name = f"tests._example_{example_name}"
-    module_path = EXAMPLES_ROOT / example_name / "app.py"
+    example_dir = EXAMPLES_ROOT / example_name
+    module_path = example_dir / "app.py"
     sys.modules.pop(module_name, None)
+    sys.modules.pop("db", None)
+    sys.modules.pop("schema", None)
+    sys.path.insert(0, str(example_dir))
     spec = importlib.util.spec_from_file_location(module_name, module_path)
     module = importlib.util.module_from_spec(spec)
     assert spec is not None and spec.loader is not None
     sys.modules[module_name] = module
-    spec.loader.exec_module(module)
+    try:
+        spec.loader.exec_module(module)
+    finally:
+        if sys.path and sys.path[0] == str(example_dir):
+            sys.path.pop(0)
     return module
 
 
@@ -46,7 +54,7 @@ async def test_public_types_and_fields_contract() -> None:
           }
         }
         """,
-        context_value=app.AppContext(session_factory),
+        context_value=app.build_context(session_factory),
     )
 
     assert result.errors is None
@@ -96,7 +104,7 @@ async def test_public_relationships_contract() -> None:
           }
         }
         """,
-        context_value=app.AppContext(session_factory),
+        context_value=app.build_context(session_factory),
     )
 
     assert result.errors is None
@@ -173,7 +181,7 @@ async def test_public_connections_filters_and_ordering_contract() -> None:
           }
         }
         """,
-        context_value=app.AppContext(session_factory),
+        context_value=app.build_context(session_factory),
     )
 
     assert result.errors is None
@@ -210,7 +218,7 @@ async def test_public_connections_filters_and_ordering_contract() -> None:
           }
         }
         """,
-        context_value=app.AppContext(session_factory),
+        context_value=app.build_context(session_factory),
     )
 
     assert result.errors is None
@@ -271,7 +279,7 @@ async def test_public_nodes_and_relay_ids_contract() -> None:
             "membershipId": "Membership_10,20",
             "legacyId": legacy_id,
         },
-        context_value=app.AppContext(session_factory),
+        context_value=app.build_context(session_factory),
     )
 
     assert result.errors is None
@@ -309,7 +317,7 @@ async def test_public_context_and_extensions_contract() -> None:
           }
         }
         """,
-        context_value=app.AppContext(session_factory, request_id="req-001"),
+        context_value=app.build_context(session_factory, request_id="req-001"),
     )
 
     assert result.errors is None
@@ -378,7 +386,7 @@ async def test_public_manual_filters_and_orders_contract() -> None:
         }
         """,
         variable_values={"authorId": str(ids["alice"])},
-        context_value=app.AppContext(session_factory),
+        context_value=app.build_context(session_factory),
     )
 
     assert result.errors is None
@@ -423,7 +431,7 @@ async def test_public_node_lookup_and_permissions_contract() -> None:
             "postId": f"Post_{ids['first_post']}",
             "userId": f"User_{ids['alice']}",
         },
-        context_value=app.AppContext(session_factory, current_user_id=None),
+        context_value=app.build_context(session_factory, current_user_id=None),
     )
 
     assert post_result.errors is None
@@ -441,7 +449,10 @@ async def test_public_node_lookup_and_permissions_contract() -> None:
         }
         """,
         variable_values={"postId": f"Post_{ids['first_post']}"},
-        context_value=app.AppContext(session_factory, current_user_id=ids["alice"]),
+        context_value=app.build_context(
+            session_factory,
+            current_user_id=ids["alice"],
+        ),
     )
 
     assert rename_result.errors is None
@@ -458,7 +469,10 @@ async def test_public_node_lookup_and_permissions_contract() -> None:
         }
         """,
         variable_values={"postId": f"Post_{ids['first_post']}"},
-        context_value=app.AppContext(session_factory, current_user_id=ids["bob"]),
+        context_value=app.build_context(
+            session_factory,
+            current_user_id=ids["bob"],
+        ),
     )
 
     assert denied_result.data is None or denied_result.data["renamePost"] is None
@@ -473,7 +487,7 @@ async def test_public_node_lookup_and_permissions_contract() -> None:
         }
         """,
         variable_values={"postId": f"Post_{ids['first_post']}"},
-        context_value=app.AppContext(session_factory, current_user_id=None),
+        context_value=app.build_context(session_factory, current_user_id=None),
     )
 
     assert (
@@ -510,7 +524,7 @@ async def test_public_nested_pagination_arguments_contract() -> None:
           }
         }
         """,
-        context_value=app.AppContext(session_factory),
+        context_value=app.build_context(session_factory),
     )
 
     assert result.errors is None
@@ -536,7 +550,7 @@ async def test_public_nested_pagination_arguments_contract() -> None:
           }
         }
         """,
-        context_value=app.AppContext(session_factory),
+        context_value=app.build_context(session_factory),
     )
 
     assert result.errors is None

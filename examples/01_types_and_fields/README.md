@@ -1,6 +1,6 @@
 # Types and computed fields
 
-This example is the smallest consumer-facing read model for the redesigned API.
+This example is the smallest consumer-facing read model in the public API.
 
 It focuses on:
 
@@ -9,5 +9,6 @@ It focuses on:
 - computed fields via `@sc.field(select=[...])`
 - the default `sc.extensions()` integration point
 
-The contract test should read as the first acceptance target for replacing the
-current `post_processor` surface.
+Its contract test is the smallest end-to-end example in the repo.
+
+Run it in place with `make test`, `make schema`, or `make serve`.

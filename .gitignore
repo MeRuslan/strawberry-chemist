@@ -18,3 +18,4 @@ wheels/
 htmlcov/
 
 examples/**/uv.lock
+site

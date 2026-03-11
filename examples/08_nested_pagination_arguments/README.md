@@ -12,3 +12,5 @@ It covers:
 The point is migration pragmatism: an application should be able to keep a
 legacy nested pagination input contract without introducing a separate manual
 pagination API.
+
+Run it in place with `make test`, `make schema`, or `make serve`.

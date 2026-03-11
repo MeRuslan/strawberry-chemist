@@ -8,6 +8,7 @@ import strawberry
 from app import (
     AppContext,
     build_schema,
+    build_context,
     create_engine_and_sessionmaker,
     prepare_database,
     seed_data,
@@ -36,10 +37,6 @@ async def env() -> AsyncIterator[ExampleEnv]:
         await engine.dispose()
 
 
-def build_context(env: ExampleEnv, *, current_user_id: int | None) -> AppContext:
-    return AppContext(env.session_factory, current_user_id=current_user_id)
-
-
 async def execute(
     env: ExampleEnv,
     query: str,
@@ -50,7 +47,10 @@ async def execute(
     return await env.schema.execute(
         query,
         variable_values=variable_values,
-        context_value=build_context(env, current_user_id=current_user_id),
+        context_value=build_context(
+            env.session_factory,
+            current_user_id=current_user_id,
+        ),
     )
 
 

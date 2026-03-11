@@ -1,14 +1,17 @@
 # Public API Examples
 
-These examples are standalone consumer projects for the current
-`strawberry-chemist` public API.
+The numbered example projects are standalone consumer projects for the public
+API.
 
-Each example:
+Each numbered example:
 
-- pins `strawberry-chemist==0.2.1`
+- pins a published `strawberry-chemist` version in its own `pyproject.toml`
 - includes a local `tool.uv.sources` override pointing at the current checkout
 - has a `test_contract.py` file defining the intended behavior
 - uses real SQLAlchemy models backed by SQLite via `aiosqlite`
+- has its own `Makefile`
+- splits persistence into `db.py`, the GraphQL contract into `schema.py`, and runtime into `app.py`
+- can be copied out and run on its own without repo-level helper scripts
 
 Their contracts are also exercised from the root package test suite in
 `tests/test_public_api/test_examples_contracts.py`.
@@ -28,7 +31,7 @@ Their contracts are also exercised from the root package test suite in
 
 ## Usage shape
 
-Each example can be verified in three ways.
+Each example can be exercised a few ways.
 
 From the repo root, run the root acceptance suite:
 
@@ -39,14 +42,12 @@ uv run pytest -q tests/test_public_api/test_examples_contracts.py
 To run an example in isolation against the current checkout:
 
 ```bash
-scripts/run-example-local 01_types_and_fields
 make example-test EXAMPLE=01_types_and_fields
 ```
 
 To run an example against the pinned published package instead of the checkout:
 
 ```bash
-scripts/run-example-published 01_types_and_fields
 make example-test-published EXAMPLE=01_types_and_fields
 ```
 
@@ -59,8 +60,29 @@ make example-schema EXAMPLE=01_types_and_fields
 To serve a seeded example schema locally:
 
 ```bash
-uv sync --group dev
 make example-serve EXAMPLE=01_types_and_fields PORT=8000
+```
+
+To work directly inside a copied example directory:
+
+```bash
+cd examples/01_types_and_fields
+make test
+make schema
+make serve PORT=8000
+```
+
+These in-directory commands use the pinned published package by default, so the
+example still runs after being copied outside this repository.
+
+Inside the repository checkout, use the local-source variants when you want the
+current working tree instead:
+
+```bash
+cd examples/01_types_and_fields
+make test-local
+make schema-local
+make serve-local PORT=8000
 ```
 
 To run published-mode against a locally built distribution artifact:
@@ -68,8 +90,9 @@ To run published-mode against a locally built distribution artifact:
 ```bash
 uv run python -m build --outdir /tmp/strawberry-chemist-dist
 STRAWBERRY_CHEMIST_FIND_LINKS=/tmp/strawberry-chemist-dist \
-  scripts/run-example-published 01_types_and_fields
+  make example-test-published EXAMPLE=01_types_and_fields
 ```
 
 The examples intentionally repeat a little boilerplate so that each one can
-read on its own without jumping between shared helper modules.
+read on its own without jumping between shared helper modules or repo-level
+runtime helpers.

@@ -8,6 +8,7 @@ import strawberry
 from app import (
     AppContext,
     build_schema,
+    build_context,
     create_engine_and_sessionmaker,
     prepare_database,
     seed_data,
@@ -28,7 +29,7 @@ async def env() -> AsyncIterator[ExampleEnv]:
     try:
         yield ExampleEnv(
             schema=build_schema(),
-            context=AppContext(session_factory, request_id="req-001"),
+            context=build_context(session_factory, request_id="req-001"),
         )
     finally:
         await engine.dispose()

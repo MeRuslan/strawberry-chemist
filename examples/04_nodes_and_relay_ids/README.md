@@ -1,6 +1,6 @@
 # Nodes and relay IDs
 
-This example defines the intended relay ergonomics for the standalone package.
+This example defines the relay ergonomics of the public API.
 
 It covers:
 
@@ -11,3 +11,5 @@ It covers:
 - an optional compact codec for legacy or integration-sensitive environments
 
 The readable default token shape assumed here is `"<NodeName>_<serialized ids>"`.
+
+Run it in place with `make test`, `make schema`, or `make serve`.

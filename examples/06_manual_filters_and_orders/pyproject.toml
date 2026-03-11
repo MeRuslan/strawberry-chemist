@@ -1,14 +1,16 @@
 [project]
 name = "strawberry-chemist-example-manual-filters-orders"
 version = "0.1.0"
-requires-python = ">=3.11,<3.13"
+requires-python = ">=3.11,<3.15"
 dependencies = [
     "aiosqlite>=0.21.0",
     "pytest>=9.0.2",
     "pytest-asyncio>=1.1.0",
     "sqlalchemy>=2.0.41",
+    "starlette>=0.47.3",
     "strawberry-chemist==0.2.1",
     "strawberry-graphql~=0.311.1",
+    "uvicorn>=0.34.0",
 ]
 
 [tool.pytest.ini_options]

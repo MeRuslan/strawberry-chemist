@@ -3,6 +3,10 @@
 Chemist-managed fields rely on a small context contract rather than a framework
 base class.
 
+Chemist does not create the GraphQL context object. Your application supplies
+that object to Strawberry, and `sc.extensions()` adds the request-local loader
+container and selection cache onto it during execution.
+
 ## Required context behavior
 
 Your GraphQL context should provide:
@@ -23,6 +27,18 @@ schema = strawberry.Schema(
 
 You can mix Chemist-managed fields with normal Strawberry resolvers on the same
 schema.
+
+## Execution wiring
+
+Pass your application context into Strawberry execution explicitly:
+
+```python
+context = build_context(session_factory, request_id="req-001")
+result = await schema.execute(query, context_value=context)
+```
+
+For ASGI integrations, return that same context object from the framework
+context hook for each request.
 
 Primary example:
 

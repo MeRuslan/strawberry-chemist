@@ -4,13 +4,23 @@ All notable changes to this project will be documented in this file.
 
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
 
+## [0.2.4] - 2026-03-11
+
+### Changed
+
+- Made the numbered example projects self-contained by adding per-example
+  `Makefile` workflows plus example-local schema print and serve entrypoints.
+- Changed the repo-root `example-*` commands to delegate directly into the
+  example directories instead of relying on repo-level example runner scripts.
+- Updated the examples docs to describe the in-directory `make` workflows and
+  the portable copied-example path.
+
 ## [0.2.2] - 2026-03-11
 
 ### Added
 
 - Example workflow commands via `make`, including single-example and
   all-examples test targets plus schema print/serve helpers.
-- `scripts/example_schema.py` for printing or serving seeded example schemas.
 
 ### Changed
 
@@ -81,6 +91,7 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
 - Moved Postgres-only tests under the `psql` marker.
 
 [0.2.2]: https://github.com/MeRuslan/strawberry-chemist/releases/tag/0.2.2
+[0.2.3]: https://github.com/MeRuslan/strawberry-chemist/releases/tag/0.2.3
 [0.2.1]: https://github.com/MeRuslan/strawberry-chemist/releases/tag/0.2.1
 [0.2.0]: https://github.com/MeRuslan/strawberry-chemist/releases/tag/0.2.0
 [0.1.0]: https://github.com/MeRuslan/strawberry-chemist/releases/tag/0.1.0

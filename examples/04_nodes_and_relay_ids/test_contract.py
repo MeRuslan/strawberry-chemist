@@ -9,6 +9,7 @@ from app import (
     AppContext,
     LEGACY_CODEC,
     build_schema,
+    build_context,
     create_engine_and_sessionmaker,
     prepare_database,
     seed_data,
@@ -30,7 +31,7 @@ async def env() -> AsyncIterator[ExampleEnv]:
     try:
         yield ExampleEnv(
             schema=build_schema(),
-            context=AppContext(session_factory),
+            context=build_context(session_factory),
             legacy_id=LEGACY_CODEC.encode("LegacyBookmark", ("5",)),
         )
     finally:

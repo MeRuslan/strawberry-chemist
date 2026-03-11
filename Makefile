@@ -10,8 +10,6 @@ EXAMPLES := $(shell find examples -mindepth 1 -maxdepth 1 -type d -name '[0-9][0
 .PHONY: help test mypy check \
 	example-test example-test-published examples-test examples-test-published \
 	example-schema example-serve \
-	sample-test sample-test-published samples-test samples-test-published \
-	sample-schema sample-serve
 
 help:
 	@echo "make test"
@@ -33,28 +31,29 @@ mypy:
 check: test mypy
 
 example-test:
-	scripts/run-example-local "$(EXAMPLE)"
+	$(MAKE) -C "examples/$(EXAMPLE)" test-local
 
 example-test-published:
-	scripts/run-example-published "$(EXAMPLE)"
+	$(MAKE) -C "examples/$(EXAMPLE)" test-published
 
 examples-test:
 	@set -e; for example in $(EXAMPLES); do \
 		echo "==> $$example"; \
-		scripts/run-example-local "$$example"; \
+		$(MAKE) -C "examples/$$example" test-local; \
 	done
 
 examples-test-published:
 	@set -e; for example in $(EXAMPLES); do \
 		echo "==> $$example"; \
-		scripts/run-example-published "$$example"; \
+		$(MAKE) -C "examples/$$example" test-published; \
 	done
 
 example-schema:
-	uv run python scripts/example_schema.py print "$(EXAMPLE)"
+	$(MAKE) -C "examples/$(EXAMPLE)" schema-local
 
 example-serve:
-	uv run python scripts/example_schema.py serve "$(EXAMPLE)" \
-		--host "$(HOST)" \
-		--port "$(PORT)" \
-		--request-id "$(REQUEST_ID)" $(if $(strip $(CURRENT_USER_ID)),--current-user-id "$(CURRENT_USER_ID)")
+	$(MAKE) -C "examples/$(EXAMPLE)" serve-local \
+		HOST="$(HOST)" \
+		PORT="$(PORT)" \
+		REQUEST_ID="$(REQUEST_ID)" \
+		CURRENT_USER_ID="$(CURRENT_USER_ID)"

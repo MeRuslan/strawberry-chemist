@@ -12,3 +12,5 @@ It covers:
 
 The contract tests assume a GraphQL surface with `filter:` and `orderBy:`
 arguments, using the default flat pagination argument shape.
+
+Run it in place with `make test`, `make schema`, or `make serve`.
