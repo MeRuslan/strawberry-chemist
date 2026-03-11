@@ -1,29 +1,35 @@
 from __future__ import annotations
 
-from typing import Any, Hashable, Protocol, TypeGuard, TypeVar, runtime_checkable
+from typing import Any, Hashable, Protocol, TypeVar, runtime_checkable
 
 from sqlalchemy.sql import Select
 from strawberry.types.arguments import StrawberryArgument
 from strawberry.types.nodes import SelectedField
+from typing_extensions import TypeIs
 
 
 PageInputType = TypeVar("PageInputType")
+PageInputContraType = TypeVar("PageInputContraType", contravariant=True)
 GenericPaginationReturnType = TypeVar("GenericPaginationReturnType")
-PaginationResultType = TypeVar("PaginationResultType")
+PaginationResultType = TypeVar("PaginationResultType", covariant=True)
 
 
 @runtime_checkable
 class PaginationPolicy(
-    Protocol[PageInputType, GenericPaginationReturnType, PaginationResultType]
+    Protocol[
+        PageInputContraType,
+        GenericPaginationReturnType,
+        PaginationResultType,
+    ]
 ):
     def get_fields_from_typed_request(
         self,
         selected_fields: list[SelectedField],
     ) -> list[SelectedField]: ...
 
-    def cache_key(self, page: PageInputType) -> Hashable: ...
+    def cache_key(self, page: PageInputContraType) -> Hashable: ...
 
-    def paginate_query(self, query: Select, page: PageInputType) -> Select: ...
+    def paginate_query(self, query: Select, page: PageInputContraType) -> Select: ...
 
     def paginate_result(
         self,
@@ -45,8 +51,16 @@ class FlatPaginationPolicy(
 
 @runtime_checkable
 class NestedPaginationPolicy(
-    PaginationPolicy[PageInputType, GenericPaginationReturnType, PaginationResultType],
-    Protocol[PageInputType, GenericPaginationReturnType, PaginationResultType],
+    PaginationPolicy[
+        PageInputContraType,
+        GenericPaginationReturnType,
+        PaginationResultType,
+    ],
+    Protocol[
+        PageInputContraType,
+        GenericPaginationReturnType,
+        PaginationResultType,
+    ],
 ):
     python_name: str
 
@@ -56,8 +70,16 @@ class NestedPaginationPolicy(
 
 @runtime_checkable
 class CountedPaginationPolicy(
-    PaginationPolicy[PageInputType, GenericPaginationReturnType, PaginationResultType],
-    Protocol[PageInputType, GenericPaginationReturnType, PaginationResultType],
+    PaginationPolicy[
+        PageInputContraType,
+        GenericPaginationReturnType,
+        PaginationResultType,
+    ],
+    Protocol[
+        PageInputContraType,
+        GenericPaginationReturnType,
+        PaginationResultType,
+    ],
 ):
     include_total_count: bool
 
@@ -65,6 +87,12 @@ class CountedPaginationPolicy(
 
 
 def is_flat_pagination_policy(
-    pagination: object,
-) -> TypeGuard[FlatPaginationPolicy[Any, Any, Any]]:
+    pagination: PaginationPolicy[Any, Any, Any],
+) -> TypeIs[FlatPaginationPolicy[Any, Any, Any]]:
     return hasattr(pagination, "arguments")
+
+
+def is_nested_pagination_policy(
+    pagination: PaginationPolicy[Any, Any, Any],
+) -> TypeIs[NestedPaginationPolicy[Any, Any, Any]]:
+    return hasattr(pagination, "argument") and hasattr(pagination, "python_name")

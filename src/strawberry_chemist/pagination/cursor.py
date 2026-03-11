@@ -5,11 +5,13 @@ from contextvars import ContextVar
 from typing import Any, Generic, Optional, TypeAlias
 
 import strawberry
+from sqlalchemy import false
 from sqlalchemy.sql import Select
 from strawberry.annotation import StrawberryAnnotation
 from strawberry.types.arguments import StrawberryArgument
 from strawberry.types.nodes import SelectedField
 
+from strawberry_chemist.fields.utils import find_selected_field, iter_selected_fields
 from strawberry_chemist.pagination.base import GenericPaginationReturnType
 
 ABSOLUTE_MAX_LIMIT = 40
@@ -47,7 +49,9 @@ class Edge(Generic[GenericPaginationReturnType]):
 
 @strawberry.type
 class RelayConnection(Generic[GenericPaginationReturnType]):
-    edges: list[Edge[GenericPaginationReturnType]] = tuple()
+    edges: list[Edge[GenericPaginationReturnType]] = strawberry.field(
+        default_factory=list
+    )
     pageInfo: PageInfo
 
 
@@ -111,15 +115,13 @@ class CursorPagination:
     def get_fields_from_typed_request(
         selected_fields: list[SelectedField],
     ) -> list[SelectedField]:
-        edges = [
-            field for field in selected_fields[0].selections if field.name == "edges"
-        ]
-        if not edges:
+        edges = find_selected_field(selected_fields[0].selections, "edges")
+        if edges is None:
             return []
-        nodes = [field for field in edges[0].selections if field.name == "node"]
-        if not nodes:
+        node = find_selected_field(edges.selections, "node")
+        if node is None:
             return []
-        return nodes[0].selections
+        return list(iter_selected_fields(node.selections))
 
     def extract_pagination_kwargs(
         self, kwargs: dict[str, Any]
@@ -157,7 +159,7 @@ class CursorPagination:
         after_offset = self.offset_from_cursor(after)
         context_after.set(after_offset)
         if after_offset is None:
-            return query.where(False)
+            return query.where(false())
         return query.limit(first + 1).offset(after_offset)
 
     def paginate_result(

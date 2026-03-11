@@ -9,6 +9,7 @@ from strawberry.annotation import StrawberryAnnotation
 from strawberry.types.arguments import StrawberryArgument
 from strawberry.types.nodes import SelectedField
 
+from strawberry_chemist.fields.utils import find_selected_field, iter_selected_fields
 from strawberry_chemist.pagination.base import GenericPaginationReturnType
 
 DEFAULT_MAX_LIMIT = 20
@@ -84,12 +85,10 @@ class OffsetPagination:
     def get_fields_from_typed_request(
         selected_fields: list[SelectedField],
     ) -> list[SelectedField]:
-        items = [
-            field for field in selected_fields[0].selections if field.name == "items"
-        ]
-        if not items:
+        items = find_selected_field(selected_fields[0].selections, "items")
+        if items is None:
             return []
-        return items[0].selections
+        return list(iter_selected_fields(items.selections))
 
     def extract_pagination_kwargs(self, kwargs: dict[str, int]) -> tuple[int, int]:
         return kwargs.get("limit", self.default_limit), kwargs.get("offset", 0)

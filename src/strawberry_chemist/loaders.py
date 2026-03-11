@@ -1,15 +1,16 @@
 from abc import ABC
 from itertools import groupby
 from typing import (
-    Callable,
     Any,
+    Callable,
     List,
     Optional,
     Tuple,
     Dict,
     Set,
+    Sequence,
     Type,
-    Iterable,
+    TypeAlias,
 )
 
 import sqlalchemy
@@ -24,12 +25,7 @@ from sqlalchemy import (
     ColumnElement,
     literal,
 )
-from sqlalchemy.orm import (
-    RelationshipProperty,
-    aliased,
-    Load,
-    DeclarativeMeta,
-)
+from sqlalchemy.orm import RelationshipProperty, aliased, Load
 from sqlalchemy.sql import Values, visitors
 from strawberry.dataloader import DataLoader
 
@@ -39,18 +35,27 @@ from strawberry_chemist.fields.field import (
     StrawberrySQLAlchemyRelationField,
 )
 from strawberry_chemist.gql_context import context_var
+from strawberry_chemist.pagination.base import CountedPaginationPolicy
 
 
-def generate_via_field_loader_fn(model: Any, field_name: str = "id"):
-    async def _via_id_loader(ids: List[int]) -> List[Optional[model]]:
+ColumnExpression: TypeAlias = ColumnElement[Any]
+LoaderOptions: TypeAlias = tuple[Any | None, Any | None, Any | None] | None
+ParentKey: TypeAlias = tuple[Any, ...]
+ORMRow: TypeAlias = tuple[Any, ...]
+
+
+def generate_via_field_loader_fn(model: type[Any], field_name: str = "id"):
+    async def _via_id_loader(ids: List[Any]) -> List[Any | None]:
         ctx = context_var.get()
 
         query = select(model).filter(getattr(model, field_name).in_(ids))
         async with ctx.get_session() as session:
-            objs: Iterable[model] = (await session.scalars(query)).all()
+            loaded_objects = list((await session.scalars(query)).all())
 
-        objs: Dict = {getattr(o, field_name): o for o in objs}
-        return [objs.get(_id, None) for _id in ids]
+        objects_by_key: Dict[Any, Any] = {
+            getattr(obj, field_name): obj for obj in loaded_objects
+        }
+        return [objects_by_key.get(_id, None) for _id in ids]
 
     return _via_id_loader
 
@@ -60,7 +65,7 @@ class DataLoaderContainer:
     A class that manages data loaders, which in turn is in the strawberry context, initiated on every request.
     """
 
-    _loaders: Dict[Tuple[StrawberrySQLAlchemyField, Any], DataLoader]
+    _loaders: Dict[Tuple[StrawberrySQLAlchemyField, LoaderOptions], DataLoader]
     _named_loaders: Dict[str, DataLoader]
 
     def __init__(self):
@@ -80,8 +85,8 @@ class DataLoaderContainer:
     def get_dataloader(
         self,
         field: StrawberrySQLAlchemyField,
-        options: Optional[List[Tuple]] = None,
-        loader_options: Optional[List[Tuple]] = None,
+        options: LoaderOptions = None,
+        loader_options: LoaderOptions = None,
     ) -> DataLoader:
         """
         Gets the dataloader given wanted characteristics.
@@ -89,20 +94,24 @@ class DataLoaderContainer:
         :param options: the list of options on the relation which alters results, i.e. pagination, order
         :return: dataloader for the filed with given options
         """
-        if (field, options) not in self._loaders.keys():
+        cache_key = (field, options)
+        if cache_key not in self._loaders:
             # I can cache created callables, although I don't think it matters that much
             if isinstance(field, StrawberrySQLAlchemyRelationField) and not isinstance(
                 field, SQLAlchemyBaseConnectionField
             ):
-                field: StrawberrySQLAlchemyRelationField
+                relationship_property = field.relationship_property
+                assert relationship_property is not None
                 self._loaders[(field, None)] = DataLoader(
                     RelationshipLoader(
-                        field=field, relationship_property=field.relationship_property
+                        field=field, relationship_property=relationship_property
                     )
                 )
             elif isinstance(field, SQLAlchemyBaseConnectionField):
-                order, page, filters = loader_options or options
-                self._loaders[(field, options)] = DataLoader(
+                resolved_loader_options = loader_options or options
+                assert resolved_loader_options is not None
+                order, page, filters = resolved_loader_options
+                self._loaders[cache_key] = DataLoader(
                     ConnectionLoader(
                         connection=field,
                         page_input=page,
@@ -111,10 +120,12 @@ class DataLoaderContainer:
                         relationship_property=field.relationship_property,
                     )
                 )
-        return self._loaders[(field, options)]
+        return self._loaders[cache_key]
 
 
-def local_key_sql_values(data: List[Any], local_cs: Set[ColumnElement]) -> Values:
+def local_key_sql_values(
+    data: List[Any], local_cs: Sequence[ColumnExpression]
+) -> Values:
     value_expr = values(
         *[column(l_c.name, l_c.type) for l_c in local_cs], name="parent_values"
     ).data(data)
@@ -122,7 +133,7 @@ def local_key_sql_values(data: List[Any], local_cs: Set[ColumnElement]) -> Value
 
 
 def restrict_fields(
-    target: DeclarativeMeta, fields: List[ColumnElement], query: Select
+    target: Any, fields: Sequence[ColumnExpression], query: Select[Any]
 ):
     # TODO: efficiently load inheritance hierarchies
     #   can use selectin_polymorphic, but would have to execute a separate query per model manually
@@ -130,22 +141,30 @@ def restrict_fields(
     #   I'll need to parse fragments and figure out which fields are
     #   needed for which models
     #   UPD: https://github.com/sqlalchemy/sqlalchemy/issues/9373#issuecomment-1445341424
-    if target.__mapper__.polymorphic_identity is None:
-        return query.options(
-            Load(target).load_only(*[getattr(target, field.key) for field in fields])
-        )
+    if sqlalchemy.inspect(target).mapper.polymorphic_identity is None:
+        load_only_fields = [
+            getattr(target, field.key) for field in fields if field.key is not None
+        ]
+        if load_only_fields:
+            return query.options(Load(target).load_only(*load_only_fields))
     return query
 
 
 def process_orm_results_for_dataload(
-    results: List[Tuple], key_len: int, parent_keys: List[Tuple], default: Any = None
+    results: Sequence[ORMRow] | Any,
+    key_len: int,
+    parent_keys: Sequence[ParentKey],
+    default: Any = None,
 ) -> List[Any]:
+    result_rows = list(results)
     # filter out results with all keys = None
-    results = [
-        result for result in results if any(el is not None for el in result[0:key_len])
+    filtered_results = [
+        result
+        for result in result_rows
+        if any(el is not None for el in result[0:key_len])
     ]
-    results = sorted(results, key=lambda x: x[0:key_len])
-    grouped_results = groupby(results, lambda x: x[0:key_len])
+    filtered_results = sorted(filtered_results, key=lambda x: x[0:key_len])
+    grouped_results = groupby(filtered_results, lambda x: x[0:key_len])
     res_dict = {
         key: [result[key_len] for result in group] for key, group in grouped_results
     }
@@ -155,11 +174,11 @@ def process_orm_results_for_dataload(
 
 
 def _extract_ordered_columns(
-    order_by_clauses: Tuple[ColumnElement, ...],
-) -> Set[ColumnElement]:
-    ordered_columns: Set[ColumnElement] = set()
+    order_by_clauses: Tuple[ColumnExpression, ...],
+) -> Set[ColumnExpression]:
+    ordered_columns: Set[ColumnExpression] = set()
 
-    def _collect_column(column):
+    def _collect_column(column: Any) -> None:
         ordered_columns.add(column)
         ordered_columns.update(getattr(column, "proxy_set", (column,)))
 
@@ -169,8 +188,8 @@ def _extract_ordered_columns(
     return ordered_columns
 
 
-def add_primary_key_tie_breaker(query: Select, model: DeclarativeMeta) -> Select:
-    pk_columns = tuple(model.__mapper__.primary_key)
+def add_primary_key_tie_breaker(query: Select[Any], model: Any) -> Select[Any]:
+    pk_columns = tuple(sqlalchemy.inspect(model).primary_key)
     if not pk_columns:
         return query
 
@@ -190,38 +209,40 @@ def add_primary_key_tie_breaker(query: Select, model: DeclarativeMeta) -> Select
 class ChildrenLoadingStrategy:
     @staticmethod
     def construct_query(
-        relationship_property: RelationshipProperty,
+        relationship_property: RelationshipProperty[Any],
         parent_columns: Tuple[str, ...],
-        parent_data: List[Tuple],
-        query: Select,
-    ):
+        parent_data: List[ParentKey],
+        query: Select[Any],
+    ) -> tuple[Select[Any], Any]:
         raise NotImplementedError
 
     @staticmethod
-    def filter_all_nones(parent_data: List[Tuple]):
+    def filter_all_nones(parent_data: List[ParentKey]) -> List[ParentKey]:
         return list(
             filter(lambda data: any(el is not None for el in data), parent_data)
         )
 
     @staticmethod
     def apply_secondary(
-        query: Select,
-        relationship_property: RelationshipProperty,
-        remote_keys: Tuple[ColumnElement],
-    ):
+        query: Select[Any],
+        relationship_property: RelationshipProperty[Any],
+        remote_keys: Tuple[ColumnExpression, ...],
+    ) -> tuple[Select[Any], tuple[ColumnExpression, ...]]:
         # aliased_sec_join = relationship_property.secondaryjoin
         # fake_left = getattr(model, aliased_sec_join.left.key)
-        assert len(relationship_property.secondary_synchronize_pairs) == 1, (
-            "raise on composites, just to check"
+        secondary_pairs = relationship_property.secondary_synchronize_pairs
+        secondary_join = relationship_property.secondaryjoin
+        secondary = relationship_property.secondary
+        assert secondary_pairs is not None
+        assert secondary_join is not None
+        assert secondary is not None
+        assert len(secondary_pairs) == 1, "raise on composites, just to check"
+        filtered_remote_keys = tuple(
+            remote_key
+            for remote_key in remote_keys
+            if remote_key != secondary_join.right
         )
-        remote_keys = list(
-            filter(
-                lambda x: x != relationship_property.secondaryjoin.right, remote_keys
-            )
-        )
-        return query.join(
-            relationship_property.secondary, relationship_property.secondaryjoin
-        ), remote_keys
+        return query.join(secondary, secondary_join), filtered_remote_keys
 
 
 class ValuesLoadingStrategy(ChildrenLoadingStrategy):
@@ -234,17 +255,19 @@ class ValuesLoadingStrategy(ChildrenLoadingStrategy):
 
     @staticmethod
     def construct_query(
-        relationship_property: RelationshipProperty,
+        relationship_property: RelationshipProperty[Any],
         parent_columns: Tuple[str, ...],
-        parent_data: List[Tuple],
-        query: Select,
-    ):
+        parent_data: List[ParentKey],
+        query: Select[Any],
+    ) -> tuple[Select[Any], Any]:
         parent_data_local = ValuesLoadingStrategy.filter_all_nones(parent_data)
+        model: Any = relationship_property.entity.entity
         if not parent_data_local:
-            return query.where(sqlalchemy.false()), relationship_property.entity.entity
+            return query.where(sqlalchemy.false()), model
 
-        model = relationship_property.entity.entity
-        local_keys, remote_keys = zip(*relationship_property.local_remote_pairs)
+        assert relationship_property.local_remote_pairs is not None
+        local_remote_pairs = tuple(relationship_property.local_remote_pairs)
+        local_keys, remote_keys = zip(*local_remote_pairs)
 
         if relationship_property.secondary is not None:
             query, remote_keys = ValuesLoadingStrategy.apply_secondary(
@@ -265,11 +288,11 @@ class ValuesLoadingStrategy(ChildrenLoadingStrategy):
         # assert len(remote_keys) == 1, "raise on composites, second guard"
         for r, v in zip(list(remote_keys), list(value_expr.c)):
             query = query.filter(r == v)
-        query = query.lateral()
+        lateral_query = query.lateral()
         # alias the related model from lateral query to return it
-        related_alias = aliased(model, query)
+        related_alias = aliased(model, lateral_query)
         result_q = select(value_expr, related_alias).select_from(
-            value_expr.outerjoin(query, true())
+            value_expr.outerjoin(lateral_query, true())
         )
         return result_q, related_alias
 
@@ -279,17 +302,19 @@ class UnionLoadingStrategy(ChildrenLoadingStrategy):
 
     @staticmethod
     def construct_query(
-        relationship_property: RelationshipProperty,
+        relationship_property: RelationshipProperty[Any],
         parent_columns: Tuple[str, ...],
-        parent_data: List[Tuple],
-        query: Select,
-    ):
+        parent_data: List[ParentKey],
+        query: Select[Any],
+    ) -> tuple[Select[Any], Any]:
         parent_data_local = UnionLoadingStrategy.filter_all_nones(parent_data)
+        model: Any = relationship_property.entity.entity
         if not parent_data_local:
-            return query.where(sqlalchemy.false()), relationship_property.entity.entity
+            return query.where(sqlalchemy.false()), model
 
-        model = relationship_property.entity.entity
-        local_keys, remote_keys = zip(*relationship_property.local_remote_pairs)
+        assert relationship_property.local_remote_pairs is not None
+        local_remote_pairs = tuple(relationship_property.local_remote_pairs)
+        local_keys, remote_keys = zip(*local_remote_pairs)
 
         if relationship_property.secondary is not None:
             query, remote_keys = UnionLoadingStrategy.apply_secondary(
@@ -297,9 +322,9 @@ class UnionLoadingStrategy(ChildrenLoadingStrategy):
             )
 
         assert len(remote_keys) == 1, "raise on composites, second guard"
-        q_list = []
+        q_list: List[Select[Any]] = []
         for parent_keys in parent_data_local:
-            labeled_parent_value = literal(list(parent_keys)[0]).label(
+            labeled_parent_value = literal(parent_keys[0]).label(
                 UnionLoadingStrategy.literal_value_name
             )
             query_with_key_field = query.add_columns(labeled_parent_value)
@@ -317,8 +342,13 @@ class UnionLoadingStrategy(ChildrenLoadingStrategy):
 
 
 class LoadViaParents(ABC):
-    relationship_property: RelationshipProperty
+    relationship_property: RelationshipProperty[Any] | None
     loading_strategy: Type[ChildrenLoadingStrategy] = ValuesLoadingStrategy
+
+    def require_relationship_property(self) -> RelationshipProperty[Any]:
+        relationship_property = self.relationship_property
+        assert relationship_property is not None
+        return relationship_property
 
     @staticmethod
     def resolve_loading_strategy(
@@ -331,9 +361,12 @@ class LoadViaParents(ABC):
 
     def extract_parents_keys(
         self, parents: List[Any]
-    ) -> Tuple[Tuple[str, ...], List[Tuple]]:
+    ) -> Tuple[Tuple[str, ...], List[ParentKey]]:
+        relationship_property = self.require_relationship_property()
         local_columns_names: tuple[str, ...] = tuple(
-            l_c.key for l_c in self.relationship_property.local_columns
+            l_c.key
+            for l_c in relationship_property.local_columns
+            if l_c.key is not None
         )
         return local_columns_names, [
             tuple(obj.__getattribute__(key) for key in local_columns_names)
@@ -343,14 +376,15 @@ class LoadViaParents(ABC):
     async def load(
         self,
         parents: List[Any],
-        fields_to_load: List[ColumnElement],
-        children_query: Select,
+        fields_to_load: Sequence[ColumnExpression],
+        children_query: Select[Any],
     ) -> List[Any]:
-        if self.relationship_property.distinct_target_key:
+        relationship_property = self.require_relationship_property()
+        if relationship_property.distinct_target_key:
             children_query = children_query.distinct()
 
         ctx = context_var.get()
-        local_columns = self.relationship_property.local_columns
+        local_columns = relationship_property.local_columns
         local_columns_len = len(local_columns)
         parent_c_names, parent_c_data = self.extract_parents_keys(parents)
         async with ctx.get_session() as asession:
@@ -360,20 +394,20 @@ class LoadViaParents(ABC):
                 self.loading_strategy,
             )
             result_q, res_alias = loading_strategy.construct_query(
-                self.relationship_property,
+                relationship_property,
                 parent_c_names,
                 parent_c_data,
                 children_query,
             )
             result_q = restrict_fields(res_alias, fields_to_load, result_q)
-            results = await asession.execute(result_q)
+            results = list(await asession.execute(result_q))
 
         return process_orm_results_for_dataload(
             results, local_columns_len, parent_c_data, default=[]
         )
 
 
-class RelationshipLoader(LoadViaParents, Callable):
+class RelationshipLoader(LoadViaParents):
     """
     The loader class that handles case of a sqlalchemy-defined relationship.
     """
@@ -381,36 +415,37 @@ class RelationshipLoader(LoadViaParents, Callable):
     def __init__(
         self,
         field: StrawberrySQLAlchemyRelationField,
-        relationship_property: RelationshipProperty,
+        relationship_property: RelationshipProperty[Any],
         default: Optional[Any] = None,
     ):
         self.field = field
         self.default = default
         self.relationship_property = relationship_property
 
-    def filtered_ordered_query(self):
-        query = select(self.relationship_property.mapper)
+    def filtered_ordered_query(self) -> Select[Any]:
+        relationship_property = self.require_relationship_property()
+        query = select(relationship_property.mapper)
         if self.field.where:
             for f in self.field.where:
                 query = query.filter(f)
-        elif self.relationship_property and self.relationship_property.order_by:
-            query = query.order_by(*self.relationship_property.order_by)
+        elif relationship_property.order_by:
+            query = query.order_by(*relationship_property.order_by)
         return query
 
-    async def __call__(self, parents: List) -> List:
+    async def __call__(self, parents: List[Any]) -> List[Any]:
         query_base = self.filtered_ordered_query()
         fields_to_load = self.field.get_select_fields()
         res_flat = await self.load(
             parents=parents, fields_to_load=fields_to_load, children_query=query_base
         )
 
-        if not self.relationship_property.uselist:
+        if not self.require_relationship_property().uselist:
             res_flat = [r[0] if r else None for r in res_flat]
 
         return res_flat
 
 
-class ConnectionLoader(LoadViaParents, Callable):
+class ConnectionLoader(LoadViaParents):
     """
     The loader class that handles a complex connections.
     """
@@ -418,10 +453,10 @@ class ConnectionLoader(LoadViaParents, Callable):
     def __init__(
         self,
         connection: SQLAlchemyBaseConnectionField,
-        relationship_property: RelationshipProperty,
-        page_input: Optional[Tuple],
-        order_input: Optional[Tuple],
-        filter_input: Optional[Tuple],
+        relationship_property: RelationshipProperty[Any] | None,
+        page_input: Any = None,
+        order_input: Any = None,
+        filter_input: Any = None,
         default: Optional[Any] = None,
     ):
         self.default = default
@@ -431,23 +466,24 @@ class ConnectionLoader(LoadViaParents, Callable):
         self.order_input = order_input
         self.filter_input = filter_input
 
-    def filtered_ordered_query(self):
+    def filtered_ordered_query(self) -> Select[Any]:
         model = self.connection.sqlalchemy_model
         # form target model query
         query = select(model)
+        relationship_property = self.relationship_property
 
         if self.connection.where:
             for f in self.connection.where:
                 query = query.filter(f)
         # order using user input or defaults provided by relationship/connection.
-        if self.order_input:
+        if self.order_input and self.connection.order is not None:
             query = self.connection.order.order_query(query, self.order_input)
-        elif self.relationship_property and self.relationship_property.order_by:
-            query = query.order_by(*self.relationship_property.order_by)
+        elif relationship_property is not None and relationship_property.order_by:
+            query = query.order_by(*relationship_property.order_by)
         elif self.connection.default_order_by is not None:
             query = query.order_by(*self.connection.default_order_by)
 
-        if self.filter_input:
+        if self.filter_input and self.connection.filter is not None:
             query = self.connection.filter.filter_query(query, self.filter_input)
 
         # always append PK columns as final tiebreakers to keep pagination deterministic.
@@ -455,20 +491,22 @@ class ConnectionLoader(LoadViaParents, Callable):
 
         return query
 
-    def filtered_ordered_paginated_query(self):
+    def filtered_ordered_paginated_query(self) -> Select[Any]:
         return self.connection.pagination.paginate_query(
             self.filtered_ordered_query(), self.page_input
         )
 
-    def paginate_result(self, result, *, total_count: int = 0):
-        if getattr(self.connection.pagination, "include_total_count", False):
+    def paginate_result(self, result: Sequence[Any], *, total_count: int = 0) -> Any:
+        if isinstance(self.connection.pagination, CountedPaginationPolicy):
             return self.connection.pagination.paginate_result(
-                result,
+                list(result),
                 total_count=total_count,
             )
-        return self.connection.pagination.paginate_result(result)
+        return self.connection.pagination.paginate_result(list(result))
 
-    async def load_root_connection(self, fields: List[ColumnElement], query: Select):
+    async def load_root_connection(
+        self, fields: Sequence[ColumnExpression], query: Select[Any]
+    ) -> List[Any]:
         # just a simple connection; a root query, no need to data load
         ctx = context_var.get()
         model = self.connection.sqlalchemy_model
@@ -479,7 +517,7 @@ class ConnectionLoader(LoadViaParents, Callable):
         )
         async with ctx.get_session() as asession:
             total_count = 0
-            if getattr(self.connection.pagination, "include_total_count", False):
+            if isinstance(self.connection.pagination, CountedPaginationPolicy):
                 total_count = (
                     await asession.execute(
                         self.connection.pagination.count_query(query)
@@ -491,18 +529,19 @@ class ConnectionLoader(LoadViaParents, Callable):
             )
             return [result]
 
-    async def __call__(self, parents: List[Any]):
+    async def __call__(self, parents: List[Any]) -> List[Any]:
         fields = self.connection.get_select_fields()
         query = self.filtered_ordered_query()
         paginated_query = self.connection.pagination.paginate_query(
             query, self.page_input
         )
 
-        assert self.relationship_property or not any(parents), (
+        relationship_property = self.relationship_property
+        assert relationship_property is not None or not any(parents), (
             "Impossible: raise on to_load if no relationship"
         )
 
-        if not self.relationship_property:
+        if relationship_property is None:
             return await self.load_root_connection(fields=fields, query=query)
 
         res_flat = await self.load(

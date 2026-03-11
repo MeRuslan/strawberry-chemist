@@ -95,22 +95,3 @@ ignore_missing_imports = true
 warn_unused_ignores = true
 show_error_codes = true
 pretty = true
-
-[[tool.mypy.overrides]]
-module = [
-    "strawberry_chemist.connection.base",
-    "strawberry_chemist.extentions",
-    "strawberry_chemist.fields.field",
-    "strawberry_chemist.fields.types",
-    "strawberry_chemist.filters",
-    "strawberry_chemist.filters.pre_filter",
-    "strawberry_chemist.loaders",
-    "strawberry_chemist.order",
-    "strawberry_chemist.pagination.base",
-    "strawberry_chemist.pagination.cursor",
-    "strawberry_chemist.pagination.limit_offset",
-    "strawberry_chemist.relay.base",
-    "strawberry_chemist.relay.object_field",
-    "strawberry_chemist.type",
-]
-ignore_errors = true

@@ -75,7 +75,7 @@ class FilterDefinition(ABC):
         query: Select,
         filters: Any,
     ) -> Select:
-        raise NotImplemented
+        raise NotImplementedError
 
 
 def _is_optional(annotation: Any) -> bool:

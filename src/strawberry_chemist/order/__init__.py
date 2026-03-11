@@ -93,7 +93,7 @@ class OrderDefinition(ABC):
         query: Select,
         order: Any,
     ) -> Select:
-        raise NotImplemented
+        raise NotImplementedError
 
 
 @strawberry.enum

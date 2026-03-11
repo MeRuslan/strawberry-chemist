@@ -1,6 +1,6 @@
 from dataclasses import astuple
 from functools import cached_property
-from typing import Any, List
+from typing import Any, List, Optional, assert_never
 
 from sqlalchemy.orm import DeclarativeMeta
 from strawberry.types.arguments import StrawberryArgument
@@ -8,21 +8,25 @@ from strawberry.types import Info
 
 from strawberry_chemist import utils
 from strawberry_chemist.fields.field import StrawberrySQLAlchemyRelationField
-from strawberry_chemist.fields.utils import drill_for_field_names
+from strawberry_chemist.fields.utils import drill_for_field_names, iter_selected_fields
 from strawberry_chemist.filters import FilterDefinition
 from strawberry_chemist.gql_context import SQLAlchemyContext
 from strawberry_chemist.order import OrderDefinition
 from strawberry_chemist.pagination.base import (
     GenericPaginationReturnType,
-    PaginationPolicy,
+    FlatPaginationPolicy,
+    NestedPaginationPolicy,
     is_flat_pagination_policy,
+    is_nested_pagination_policy,
 )
+
+PaginationPolicyUnion = FlatPaginationPolicy | NestedPaginationPolicy
 
 
 class SQLAlchemyBaseConnectionField(StrawberrySQLAlchemyRelationField):
-    pagination: PaginationPolicy[Any, Any, Any]
-    order: OrderDefinition = None
-    filter: FilterDefinition = None
+    pagination: PaginationPolicyUnion
+    order: Optional[OrderDefinition] = None
+    filter: Optional[FilterDefinition] = None
 
     def __init__(self, order=None, filter=None, default_order_by=None, **kwargs):
         self.order = order
@@ -37,7 +41,7 @@ class SQLAlchemyBaseConnectionField(StrawberrySQLAlchemyRelationField):
         type_ = utils.unwrap_type(type_)
         type_ = utils.get_sqlalchemy_model(type_)
         if not type_:
-            type_ = self.relationship_property.mapper.class_
+            type_ = self.require_relationship_property().mapper.class_
         return type_
 
     @cached_property
@@ -47,9 +51,16 @@ class SQLAlchemyBaseConnectionField(StrawberrySQLAlchemyRelationField):
         return type_var[GenericPaginationReturnType.__name__]
 
     async def resolver(
-        self, source, info: Info[SQLAlchemyContext, Any], *args, **kwargs
-    ):
-        selections = self.pagination.get_fields_from_typed_request(info.selected_fields)
+        self,
+        source: Any,
+        info: Info[SQLAlchemyContext, Any] | None,
+        *args: Any,
+        **kwargs: Any,
+    ) -> Any:
+        assert info is not None
+        selections = self.pagination.get_fields_from_typed_request(
+            list(iter_selected_fields(info.selected_fields))
+        )
         # filter selections to those which has name attribute
         #  (e.g. not InlineFragment)
         # names = [s.name for s in selections if hasattr(s, 'name')]
@@ -59,8 +70,10 @@ class SQLAlchemyBaseConnectionField(StrawberrySQLAlchemyRelationField):
         order, filters = None, None
         if is_flat_pagination_policy(self.pagination):
             pagination = self.pagination.extract_pagination_kwargs(kwargs)
-        else:
+        elif is_nested_pagination_policy(self.pagination):
             pagination = kwargs.get(self.pagination.python_name)
+        else:
+            assert_never(self.pagination)
         loader_pagination = pagination
         if self.order:
             order = kwargs.get(self.order.python_name)
@@ -94,16 +107,22 @@ class SQLAlchemyBaseConnectionField(StrawberrySQLAlchemyRelationField):
 
     @property
     def arguments(self) -> List[StrawberryArgument]:
-        gql_arguments = []
+        gql_arguments: List[StrawberryArgument] = []
         # if self.filters:
         #     gql_arguments.append(self.filters.argument)
         if self.pagination:
             if is_flat_pagination_policy(self.pagination):
                 gql_arguments.extend(self.pagination.arguments)
-            else:
+            elif is_nested_pagination_policy(self.pagination):
                 gql_arguments.append(self.pagination.argument)
+            else:
+                assert_never(self.pagination)
         if self.order:
             gql_arguments.append(self.order.argument)
         if self.filter:
             gql_arguments.append(self.filter.argument)
         return gql_arguments
+
+    @arguments.setter
+    def arguments(self, value: List[StrawberryArgument]) -> None:
+        self._arguments = value

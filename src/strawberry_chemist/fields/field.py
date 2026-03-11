@@ -4,9 +4,10 @@ from typing import Any, Callable, Dict, Iterable, List, Optional, Sequence
 
 from graphql.pyutils import is_awaitable
 from sqlalchemy import inspect
-from sqlalchemy.orm import DeclarativeMeta
+from sqlalchemy.orm import DeclarativeMeta, RelationshipProperty
 from strawberry import UNSET, LazyType
 from strawberry.annotation import StrawberryAnnotation
+from strawberry.types.arguments import StrawberryArgument
 from strawberry.types.base import StrawberryList, StrawberryOptional
 from strawberry.types.field import StrawberryField
 from strawberry.types import Info
@@ -48,12 +49,17 @@ class StrawberrySQLAlchemyField(StrawberryField):
     And has a bunch of common methods for all SQLAlchemy field types.
     """
 
+    sqlalchemy_name: str | None
+    origin_container_type: Any | None
+    select_fields: tuple[str, ...]
+    _field_type: Any
+
     def __init__(
         self,
-        sqlalchemy_name=None,
-        select: Iterable[str] = None,
-        graphql_name=None,
-        python_name=None,
+        sqlalchemy_name: str | None = None,
+        select: Optional[Iterable[str]] = None,
+        graphql_name: str | None = None,
+        python_name: str | None = None,
         **kwargs,
     ):
         self.sqlalchemy_name = sqlalchemy_name
@@ -68,17 +74,19 @@ class StrawberrySQLAlchemyField(StrawberryField):
         return [field_name for field_name in [self.sqlalchemy_name] if field_name]
 
     @property
-    def is_optional(self):
+    def is_optional(self) -> bool:
         return isinstance(self.type, StrawberryOptional)
 
     @property
-    def is_list(self):
-        return isinstance(self.type, StrawberryList) or (
-            self.is_optional and isinstance(self.type.of_type, StrawberryList)
-        )
+    def is_list(self) -> bool:
+        if isinstance(self.type, StrawberryList):
+            return True
+        if isinstance(self.type, StrawberryOptional):
+            return isinstance(self.type.of_type, StrawberryList)
+        return False
 
     @property
-    def arguments(self):
+    def arguments(self) -> List[StrawberryArgument]:
         gql_arguments = list(super().arguments)
         if not self.base_resolver:
             return gql_arguments
@@ -88,6 +96,10 @@ class StrawberrySQLAlchemyField(StrawberryField):
         return [
             argument for argument in gql_arguments if argument.python_name not in hidden
         ]
+
+    @arguments.setter
+    def arguments(self, value: List[StrawberryArgument]) -> None:
+        self._arguments = value
 
     @classmethod
     def from_field(cls, field, sqlalchemy_type):
@@ -169,7 +181,11 @@ class StrawberrySQLAlchemyField(StrawberryField):
         return kwargs
 
     def get_result(
-        self, source: Any, info: Info, args: List[Any], kwargs: Dict[str, Any]
+        self,
+        source: Any,
+        info: Info | None,
+        args: List[Any],
+        kwargs: Dict[str, Any],
     ):
         # TODO: fix the passing of info, it's not passed at all
         # TODO: come up with a way to both pass parent and the current field (e.g. anime, and genres for genresGrouped)
@@ -179,11 +195,18 @@ class StrawberrySQLAlchemyField(StrawberryField):
         result = self.resolver(source, info, *args, **kwargs)
         return result
 
-    def resolver(self, source, info: Info[SQLAlchemyContext, Any], *args, **kwargs):
+    def resolver(
+        self,
+        source: Any,
+        info: Info[SQLAlchemyContext, Any] | None,
+        *args: Any,
+        **kwargs: Any,
+    ) -> Any:
         assert source is not None, (
             f"Raw StrawberrySQLAlchemyField should not be a root."
             f"You can use some sort of a connection for that."
         )
+        assert self.sqlalchemy_name is not None
         return getattr(source, self.sqlalchemy_name)
 
 
@@ -194,10 +217,11 @@ class StrawberrySQLAlchemyRelationField(StrawberrySQLAlchemyField):
     """
 
     load_simple_fields_from_sqlalchemy = True
+    relationship_property: RelationshipProperty[Any] | None
 
     def __init__(
         self,
-        where: Optional[Sequence[Callable[[], Any]]] = None,
+        where: Optional[Sequence[Any]] = None,
         relationship_select: Optional[Iterable[str]] = None,
         load_full: bool = False,
         **kwargs,
@@ -209,11 +233,18 @@ class StrawberrySQLAlchemyRelationField(StrawberrySQLAlchemyField):
         self.load_full = load_full
         super().__init__(**kwargs)
 
+    def require_relationship_property(self) -> RelationshipProperty[Any]:
+        relationship_property = self.relationship_property
+        assert relationship_property is not None, (
+            f"Field '{self.python_name}' is missing SQLAlchemy relationship metadata."
+        )
+        return relationship_property
+
     @cached_property
     def needs_parent_fields(self) -> List[str]:
         # traverse relationship property and get all local columns
         result = []
-        for key in self.relationship_property.local_columns:
+        for key in self.require_relationship_property().local_columns:
             result.append(key.name)
         return result
 
@@ -226,7 +257,7 @@ class StrawberrySQLAlchemyRelationField(StrawberrySQLAlchemyField):
         #   with scalar type, not a model type),
         #   have to find out through the relationship property
         if not type_:
-            type_ = self.relationship_property.mapper.class_
+            type_ = self.require_relationship_property().mapper.class_
         return type_
 
     @cached_property
@@ -238,7 +269,7 @@ class StrawberrySQLAlchemyRelationField(StrawberrySQLAlchemyField):
         return type_
 
     @cached_property
-    def type_field_map(self) -> Dict[str, StrawberrySQLAlchemyField]:
+    def type_field_map(self) -> Dict[str, StrawberryField]:
         assert hasattr(self.primary_type, "__strawberry_definition__"), (
             f"Type {self.primary_type} has no __strawberry_definition__ attribute."
             f"Make sure it's a StrawberrySQLAlchemy type. Or use load='full'."
@@ -247,7 +278,7 @@ class StrawberrySQLAlchemyRelationField(StrawberrySQLAlchemyField):
         fields: List[StrawberryField] = (
             self.primary_type.__strawberry_definition__.fields
         )
-        sqla_field_map = {
+        sqla_field_map: Dict[str, StrawberryField] = {
             f.graphql_name if f.graphql_name else camel_case(f.name): f
             for f in fields
             if isinstance(f, StrawberrySQLAlchemyField)
@@ -261,9 +292,9 @@ class StrawberrySQLAlchemyRelationField(StrawberrySQLAlchemyField):
             sqla_field_map.update(simple_fields)
         return sqla_field_map
 
-    def get_select_fields(self, **kwargs) -> List:
+    def get_select_fields(self, **kwargs) -> List[Any]:
         if self.load_full:
-            return inspect(self.sqlalchemy_model).c
+            return list(inspect(self.sqlalchemy_model).c)
 
         # restrict fields to load
         ctx = context_var.get()
@@ -274,10 +305,11 @@ class StrawberrySQLAlchemyRelationField(StrawberrySQLAlchemyField):
         # filter fields that are in type_field_map
         filtered = [f for f in fields if f in self.type_field_map]
         for field in filtered:
-            if isinstance(self.type_field_map[field], StrawberrySQLAlchemyField):
-                fields_requested.update(self.type_field_map[field].needs_parent_fields)
-            elif self.type_field_map[field].is_basic_field:
-                fields_requested.add(self.type_field_map[field].python_name)
+            mapped_field = self.type_field_map[field]
+            if isinstance(mapped_field, StrawberrySQLAlchemyField):
+                fields_requested.update(mapped_field.needs_parent_fields)
+            elif mapped_field.is_basic_field and mapped_field.python_name is not None:
+                fields_requested.add(mapped_field.python_name)
         fields_requested.update(self.relationship_select)
         selections = [
             getattr(self.sqlalchemy_model, field_iter)
@@ -291,7 +323,7 @@ class StrawberrySQLAlchemyRelationField(StrawberrySQLAlchemyField):
         return False
 
     @property
-    def arguments(self):
+    def arguments(self) -> List[StrawberryArgument]:
         gql_arguments = list(super().arguments)
         if not self.base_resolver:
             return gql_arguments
@@ -300,8 +332,16 @@ class StrawberrySQLAlchemyRelationField(StrawberrySQLAlchemyField):
             argument for argument in gql_arguments if argument.python_name not in hidden
         ]
 
+    @arguments.setter
+    def arguments(self, value: List[StrawberryArgument]) -> None:
+        self._arguments = value
+
     async def get_result(
-        self, source: Any, info: Info, args: List[Any], kwargs: Dict[str, Any]
+        self,
+        source: Any,
+        info: Info | None,
+        args: List[Any],
+        kwargs: Dict[str, Any],
     ):
         # always load the related model through dataloader
         # make sure info is not duplicated
@@ -321,12 +361,17 @@ class StrawberrySQLAlchemyRelationField(StrawberrySQLAlchemyField):
         return result
 
     async def resolver(
-        self, source, info: Info[SQLAlchemyContext, Any], *args, **kwargs
-    ):
+        self,
+        source: Any,
+        info: Info[SQLAlchemyContext, Any] | None,
+        *args: Any,
+        **kwargs: Any,
+    ) -> Any:
         assert source is not None, (
             f"Raw StrawberrySQLAlchemyRelationField for model {self.sqlalchemy_model} should not be a root."
             f"You can use some sort of a connection for that."
         )
+        assert info is not None
         # filter selections to those which has name attribute
         #  (e.g. not InlineFragment)
         # names = [s.name for s in selections if hasattr(s, 'name')]

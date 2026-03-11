@@ -1,7 +1,7 @@
 import dataclasses
 import enum
 import warnings
-from typing import Any, Optional, Type
+from typing import Any, Optional, Type, cast
 
 import strawberry
 from sqlalchemy.engine import Row
@@ -161,7 +161,12 @@ def get_field(
     elif isinstance(initial_field, StrawberrySQLAlchemyField):
         field = StrawberrySQLAlchemyField.from_field(initial_field, container_type)
     else:
-        raise Exception(f"Unknown SQLalchemy field type: {model_field.property=}")
+        exc_text = (
+            f"no 'model_field' for {container_type.origin}"
+            if not model_field
+            else f"Unknown SQLalchemy field type: {model_field.property=}"
+        )
+        raise Exception(exc_text)
     field.sqlalchemy_name = sqla_name
     field.python_name = field_name
 
@@ -180,7 +185,7 @@ def get_field(
                 "This field does not map directly to a SQLAlchemy model attribute, "
                 "so it needs an explicit return annotation."
             )
-        field_type = resolve_model_field_type(model_field, container_type)
+        field_type: Any = resolve_model_field_type(model_field, container_type)
         if not field_type:
             raise NotImplementedError(
                 f"Could not resolve type automatically for field '{field_name}' in {container_type.origin} \n"
@@ -220,12 +225,11 @@ def get_fields(container_type: StrawberrySQLAlchemyType) -> list[StrawberryField
     fields = {}
 
     # collect and preserve pure strawberry fields
-    for field in dataclasses.fields(container_type.origin):
-        field: StrawberryField
-        if isinstance(field, StrawberryField) and not isinstance(
-            field, StrawberrySQLAlchemyField
+    for dataclass_field in dataclasses.fields(container_type.origin):
+        if isinstance(dataclass_field, StrawberryField) and not isinstance(
+            dataclass_field, StrawberrySQLAlchemyField
         ):
-            fields[field.name] = field
+            fields[dataclass_field.name] = dataclass_field
 
     # collect annotated fields - process our fields and implicit mappings
     for field_name, field_annotation in annotations.items():
