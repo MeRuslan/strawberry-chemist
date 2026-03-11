@@ -6,10 +6,7 @@ from sqlalchemy.orm import declarative_base, relationship, Mapped, mapped_column
 from strawberry.types import Info
 
 import strawberry_chemist
-from strawberry_chemist.extentions import DataLoadersExtension, InfoCacheExtension
-from strawberry_chemist.filters.pre_filter import RuntimeFilter
 from strawberry_chemist.gql_context import SQLAlchemyContext
-from strawberry_chemist.relay import NodeEdge, Node
 
 Base = declarative_base()
 current_year = 2023
@@ -36,33 +33,27 @@ class Book(Base):
 
 
 @strawberry_chemist.type(model=Person)
-class PersonNode(Node):
+class PersonNode:
     name: str
     books: List["BookNode"]
-    books_before_1960: List["BookNode"] = strawberry_chemist.relation_field(
-        sqlalchemy_name="books",
-        pre_filter=RuntimeFilter([lambda: Book.year < 1960]),
+    books_before_1960: List["BookNode"] = strawberry_chemist.relationship(
+        "books",
+        where=lambda: Book.year < 1960,
     )
     books_after_1960_starting_with_the: List["BookNode"] = (
-        strawberry_chemist.relation_field(
-            sqlalchemy_name="books",
-            pre_filter=RuntimeFilter(
-                [lambda: Book.year > 1960, lambda: Book.title.like("The %")]
-            ),
+        strawberry_chemist.relationship(
+            "books",
+            where=[lambda: Book.year > 1960, lambda: Book.title.like("The %")],
         )
     )
-    book_years: List[int] = strawberry_chemist.relation_field(
-        sqlalchemy_name="books",
-        needs_fields=["year"],
-        post_processor=lambda source, result: [book.year for book in result],
-    )
-    book_binary_years: List["BinaryYear"] = strawberry_chemist.relation_field(
-        sqlalchemy_name="books",
-        ignore_field_selections=True,
-        post_processor=lambda source, result: [
-            BinaryYear(binary_year=f"{book.year:b}") for book in result
-        ],
-    )
+
+    @strawberry_chemist.relationship("books", select=["year"])
+    def book_years(self, books: List["Book"]) -> List[int]:
+        return [book.year for book in books]
+
+    @strawberry_chemist.relationship("books", load="full")
+    def book_binary_years(self, books: List["Book"]) -> List["BinaryYear"]:
+        return [BinaryYear(binary_year=f"{book.year:b}") for book in books]
 
 
 def title_thrice(root: "Book", info: Info) -> str:
@@ -70,7 +61,7 @@ def title_thrice(root: "Book", info: Info) -> str:
 
 
 @strawberry_chemist.type(model=Book)
-class BookNode(Node):
+class BookNode:
     title: str
     year: int
     author: Optional[PersonNode]
@@ -102,7 +93,7 @@ class BinaryYear:
 
 
 @strawberry.type
-class Query(NodeEdge):
+class Query:
     @strawberry.field
     async def person_by_name(
         self, info: Info[SQLAlchemyContext, Any], name: str
@@ -114,6 +105,4 @@ class Query(NodeEdge):
             return person
 
 
-schema = strawberry.Schema(
-    query=Query, extensions=[DataLoadersExtension, InfoCacheExtension]
-)
+schema = strawberry.Schema(query=Query, extensions=strawberry_chemist.extensions())

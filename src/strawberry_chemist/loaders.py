@@ -78,7 +78,10 @@ class DataLoaderContainer:
         return self._named_loaders[name]
 
     def get_dataloader(
-        self, field: StrawberrySQLAlchemyField, options: Optional[List[Tuple]] = None
+        self,
+        field: StrawberrySQLAlchemyField,
+        options: Optional[List[Tuple]] = None,
+        loader_options: Optional[List[Tuple]] = None,
     ) -> DataLoader:
         """
         Gets the dataloader given wanted characteristics.
@@ -98,7 +101,7 @@ class DataLoaderContainer:
                     )
                 )
             elif isinstance(field, SQLAlchemyBaseConnectionField):
-                order, page, filters = options
+                order, page, filters = loader_options or options
                 self._loaders[(field, options)] = DataLoader(
                     ConnectionLoader(
                         connection=field,
@@ -317,6 +320,15 @@ class LoadViaParents(ABC):
     relationship_property: RelationshipProperty
     loading_strategy: Type[ChildrenLoadingStrategy] = ValuesLoadingStrategy
 
+    @staticmethod
+    def resolve_loading_strategy(
+        dialect_name: Optional[str],
+        loading_strategy: Type[ChildrenLoadingStrategy],
+    ) -> Type[ChildrenLoadingStrategy]:
+        if dialect_name == "sqlite" and loading_strategy is ValuesLoadingStrategy:
+            return UnionLoadingStrategy
+        return loading_strategy
+
     def extract_parents_keys(
         self, parents: List[Any]
     ) -> Tuple[Tuple[str, ...], List[Tuple]]:
@@ -341,12 +353,19 @@ class LoadViaParents(ABC):
         local_columns = self.relationship_property.local_columns
         local_columns_len = len(local_columns)
         parent_c_names, parent_c_data = self.extract_parents_keys(parents)
-        result_q, res_alias = self.loading_strategy.construct_query(
-            self.relationship_property, parent_c_names, parent_c_data, children_query
-        )
-        result_q = restrict_fields(res_alias, fields_to_load, result_q)
-
         async with ctx.get_session() as asession:
+            bind = asession.get_bind()
+            loading_strategy = self.resolve_loading_strategy(
+                bind.dialect.name if bind is not None else None,
+                self.loading_strategy,
+            )
+            result_q, res_alias = loading_strategy.construct_query(
+                self.relationship_property,
+                parent_c_names,
+                parent_c_data,
+                children_query,
+            )
+            result_q = restrict_fields(res_alias, fields_to_load, result_q)
             results = await asession.execute(result_q)
 
         return process_orm_results_for_dataload(
@@ -412,7 +431,7 @@ class ConnectionLoader(LoadViaParents, Callable):
         self.order_input = order_input
         self.filter_input = filter_input
 
-    def filtered_ordered_paginated_query(self):
+    def filtered_ordered_query(self):
         model = self.connection.sqlalchemy_model
         # form target model query
         query = select(model)
@@ -434,21 +453,50 @@ class ConnectionLoader(LoadViaParents, Callable):
         # always append PK columns as final tiebreakers to keep pagination deterministic.
         query = add_primary_key_tie_breaker(query, model=model)
 
-        return self.connection.pagination.paginate_query(query, self.page_input)
+        return query
+
+    def filtered_ordered_paginated_query(self):
+        return self.connection.pagination.paginate_query(
+            self.filtered_ordered_query(), self.page_input
+        )
+
+    def paginate_result(self, result, *, total_count: int = 0):
+        if getattr(self.connection.pagination, "include_total_count", False):
+            return self.connection.pagination.paginate_result(
+                result,
+                total_count=total_count,
+            )
+        return self.connection.pagination.paginate_result(result)
 
     async def load_root_connection(self, fields: List[ColumnElement], query: Select):
         # just a simple connection; a root query, no need to data load
         ctx = context_var.get()
         model = self.connection.sqlalchemy_model
-        result_q = restrict_fields(model, fields, query)
+        result_q = restrict_fields(
+            model,
+            fields,
+            self.connection.pagination.paginate_query(query, self.page_input),
+        )
         async with ctx.get_session() as asession:
+            total_count = 0
+            if getattr(self.connection.pagination, "include_total_count", False):
+                total_count = (
+                    await asession.execute(
+                        self.connection.pagination.count_query(query)
+                    )
+                ).scalar_one()
             results = await asession.execute(result_q)
-            result = self.connection.pagination.paginate_result(results.scalars().all())
+            result = self.paginate_result(
+                results.scalars().all(), total_count=total_count
+            )
             return [result]
 
     async def __call__(self, parents: List[Any]):
         fields = self.connection.get_select_fields()
-        query = self.filtered_ordered_paginated_query()
+        query = self.filtered_ordered_query()
+        paginated_query = self.connection.pagination.paginate_query(
+            query, self.page_input
+        )
 
         assert self.relationship_property or not any(parents), (
             "Impossible: raise on to_load if no relationship"
@@ -458,10 +506,13 @@ class ConnectionLoader(LoadViaParents, Callable):
             return await self.load_root_connection(fields=fields, query=query)
 
         res_flat = await self.load(
-            parents=parents, fields_to_load=fields, children_query=query
+            parents=parents, fields_to_load=fields, children_query=paginated_query
         )
 
         for i in range(len(res_flat)):
-            res_flat[i] = self.connection.pagination.paginate_result(res_flat[i])
+            res_flat[i] = self.paginate_result(
+                res_flat[i],
+                total_count=len(res_flat[i]),
+            )
 
         return res_flat

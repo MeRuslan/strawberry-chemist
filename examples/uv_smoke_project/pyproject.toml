@@ -5,5 +5,8 @@ requires-python = ">=3.11,<3.13"
 dependencies = [
     "sqlalchemy>=2.0.41",
     "strawberry-graphql==0.211.1",
-    "strawberry-chemist==0.1.0",
+    "strawberry-chemist==0.2.0",
 ]
+
+[tool.uv.sources]
+strawberry-chemist = { path = "../..", editable = true }

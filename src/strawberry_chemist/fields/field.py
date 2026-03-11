@@ -37,6 +37,7 @@ class StrawberrySQLAlchemyField(StrawberryField):
         post_processor=None,
         sqlalchemy_name=None,
         additional_parent_fields: Iterable[str] = None,
+        select: Iterable[str] = None,
         graphql_name=None,
         python_name=None,
         **kwargs,
@@ -45,14 +46,17 @@ class StrawberrySQLAlchemyField(StrawberryField):
         self.post_processor = post_processor
         self.origin_container_type = None
         self.needs_p_fields = additional_parent_fields
+        self.select_fields = tuple(select or ())
         super().__init__(graphql_name=graphql_name, python_name=python_name, **kwargs)
 
     @cached_property
     def needs_parent_fields(self) -> List[str]:
+        if self.select_fields:
+            return list(self.select_fields)
         l_f = [self.sqlalchemy_name]
         if self.needs_p_fields:
             l_f = l_f + list(self.needs_p_fields)
-        return l_f
+        return [field_name for field_name in l_f if field_name]
 
     @property
     def is_optional(self):
@@ -64,9 +68,21 @@ class StrawberrySQLAlchemyField(StrawberryField):
             self.is_optional and isinstance(self.type.of_type, StrawberryList)
         )
 
+    @property
+    def arguments(self):
+        gql_arguments = list(super().arguments)
+        if not self.base_resolver:
+            return gql_arguments
+        if not self.select_fields:
+            return gql_arguments
+        hidden = {argument.python_name for argument in self.base_resolver.arguments}
+        return [
+            argument for argument in gql_arguments if argument.python_name not in hidden
+        ]
+
     @classmethod
     def from_field(cls, field, sqlalchemy_type):
-        if isinstance(field, StrawberrySQLAlchemyField):
+        if isinstance(field, cls):
             return field
 
         default = getattr(field, "default", getattr(field, "default", UNSET))
@@ -80,10 +96,67 @@ class StrawberrySQLAlchemyField(StrawberryField):
             type_annotation=field.type_annotation
             if hasattr(field, "type_annotation")
             else StrawberryAnnotation(field.type),
+            select=getattr(field, "select_fields", None),
         )
         new_field.is_auto = getattr(field, "is_auto", False)
         new_field.origin_container_type = getattr(field, "origin_container_type", None)
         return new_field
+
+    @cached_property
+    def selected_field_value_map(self) -> Dict[str, str]:
+        return {path.rsplit(".", 1)[-1]: path for path in self.select_fields}
+
+    @staticmethod
+    def _resolve_selected_value(source: Any, path: str) -> Any:
+        value = source
+        for chunk in path.split("."):
+            value = getattr(value, chunk)
+        return value
+
+    def inject_resolver_kwargs(
+        self,
+        source: Any,
+        kwargs: Dict[str, Any],
+        relationship_value: Any = UNSET,
+    ) -> Dict[str, Any]:
+        if not self.base_resolver:
+            return kwargs
+
+        kwargs = dict(kwargs or {})
+        missing_arguments = []
+        unresolved_arguments = [
+            argument
+            for argument in self.base_resolver.arguments
+            if argument.python_name not in kwargs
+        ]
+
+        if relationship_value is not UNSET:
+            if len(unresolved_arguments) > 1:
+                raise TypeError(
+                    f"Relationship field '{self.python_name}' can only inject one "
+                    f"relationship argument, got {[arg.python_name for arg in unresolved_arguments]}"
+                )
+            if unresolved_arguments:
+                kwargs[unresolved_arguments[0].python_name] = relationship_value
+            return kwargs
+
+        selected_values = {
+            param_name: self._resolve_selected_value(source, path)
+            for param_name, path in self.selected_field_value_map.items()
+        }
+        for argument in unresolved_arguments:
+            if argument.python_name not in selected_values:
+                missing_arguments.append(argument.python_name)
+                continue
+            kwargs[argument.python_name] = selected_values[argument.python_name]
+
+        if missing_arguments:
+            raise TypeError(
+                f"Field '{self.python_name}' requires resolver parameters {missing_arguments}, "
+                f"but select={list(self.select_fields)!r} does not provide them."
+            )
+
+        return kwargs
 
     def get_result(
         self, source: Any, info: Info, args: List[Any], kwargs: Dict[str, Any]
@@ -91,6 +164,7 @@ class StrawberrySQLAlchemyField(StrawberryField):
         # TODO: fix the passing of info, it's not passed at all
         # TODO: come up with a way to both pass parent and the current field (e.g. anime, and genres for genresGrouped)
         if self.base_resolver:
+            kwargs = self.inject_resolver_kwargs(source, kwargs)
             return super().get_result(source, info, args, kwargs)
         result = self.resolver(source, info, *args, **kwargs)
 
@@ -213,18 +287,31 @@ class StrawberrySQLAlchemyRelationField(StrawberrySQLAlchemyField):
     def is_basic_field(self) -> bool:
         return False
 
+    @property
+    def arguments(self):
+        gql_arguments = list(super().arguments)
+        if not self.base_resolver:
+            return gql_arguments
+        hidden = {argument.python_name for argument in self.base_resolver.arguments}
+        return [
+            argument for argument in gql_arguments if argument.python_name not in hidden
+        ]
+
     async def get_result(
         self, source: Any, info: Info, args: List[Any], kwargs: Dict[str, Any]
     ):
         # always load the related model through dataloader
         # make sure info is not duplicated
         kwargs = kwargs or {}
-        kwargs["info"] = info
-        result = await self.resolver(source, *args, **kwargs)
+        result = await self.resolver(source, info, *args, **kwargs)
         # if there was a base resolver, use it
         if self.base_resolver:
-            kwargs["root"] = result  # put fetched value into kwargs as root
-            res = super().get_result(result, info, args, kwargs)
+            kwargs = self.inject_resolver_kwargs(
+                source,
+                kwargs,
+                relationship_value=result,
+            )
+            res = StrawberryField.get_result(self, source, info, args, kwargs)
             if is_awaitable(res):
                 return await res
             return res
@@ -255,6 +342,7 @@ def field(
     resolver=None,
     post_processor=None,
     additional_parent_fields=None,
+    select=None,
     *,
     name=None,
     sqlalchemy_name=None,
@@ -269,6 +357,7 @@ def field(
         type_annotation=None,
         sqlalchemy_name=sqlalchemy_name,
         additional_parent_fields=additional_parent_fields,
+        select=select,
         default=default,
         **kwargs,
     )
@@ -277,57 +366,69 @@ def field(
     return field_
 
 
-def relation_field(
-    resolver=None,
-    post_processor=None,
-    pre_filter=None,
-    modifier=None,
-    needs_fields=None,
-    ignore_field_selections=None,
+def attr(
+    sqlalchemy_name=None,
     *,
     name=None,
-    sqlalchemy_name=None,
     default=UNSET,
     **kwargs,
 ):
-    field_ = StrawberrySQLAlchemyRelationField(
-        post_processor=post_processor,
-        pre_filter=pre_filter,
+    return StrawberrySQLAlchemyField(
         python_name=None,
         graphql_name=name,
         type_annotation=None,
         sqlalchemy_name=sqlalchemy_name,
         default=default,
-        needs_fields=needs_fields,
-        ignore_field_selections=ignore_field_selections,
+        **kwargs,
+    )
+
+
+def _normalize_where_clause(where):
+    if where is None:
+        return None
+    if isinstance(where, RuntimeFilter):
+        return where
+    filters = where if isinstance(where, list) else [where]
+    return RuntimeFilter(filters)
+
+
+def relationship(
+    resolver=None,
+    /,
+    source: Optional[str] = None,
+    *,
+    where=None,
+    select=None,
+    load: str = "selected",
+    post_processor=None,
+    pre_filter=None,
+    needs_fields=None,
+    ignore_field_selections=None,
+    name=None,
+    sqlalchemy_name=None,
+    default=UNSET,
+    **kwargs,
+):
+    if isinstance(resolver, str):
+        source = resolver
+        resolver = None
+
+    field_ = StrawberrySQLAlchemyRelationField(
+        post_processor=post_processor,
+        pre_filter=pre_filter or _normalize_where_clause(where),
+        python_name=None,
+        graphql_name=name,
+        type_annotation=None,
+        sqlalchemy_name=sqlalchemy_name or source,
+        default=default,
+        needs_fields=needs_fields or select,
+        ignore_field_selections=(
+            ignore_field_selections
+            if ignore_field_selections is not None
+            else load == "full"
+        ),
         **kwargs,
     )
     if resolver:
         return field_(resolver)
     return field_
-
-
-# ditched as it's unusable, needs refactoring of base class
-# def exists_relation_field(
-#     resolver=None,
-#     post_processor=None,
-#     pre_filter=None,
-#     *,
-#     name=None,
-#     sqlalchemy_name=None,
-#     default=UNSET,
-#     **kwargs,
-# ):
-#     field_ = StrawberrySQLAlchemyExistsRelationField(
-#         post_processor=post_processor,
-#         pre_filter=pre_filter,
-#         python_name=None,
-#         graphql_name=name,
-#         type_annotation=None,
-#         sqlalchemy_name=sqlalchemy_name,
-#         default=default,
-#         **kwargs,
-#     )
-#     if resolver:
-#         return field_(resolver)
-#     return field_

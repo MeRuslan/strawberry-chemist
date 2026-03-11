@@ -1,0 +1,18 @@
+site_name: strawberry-chemist
+site_description: Explicit Strawberry GraphQL DTOs for SQLAlchemy applications.
+repo_url: https://github.com/MeRuslan/strawberry-chemist
+edit_uri: edit/main/docs/
+docs_dir: docs
+theme:
+  name: readthedocs
+nav:
+  - Overview: index.md
+  - Getting Started: getting-started.md
+  - API Surface: api-surface.md
+  - Types And Fields: types-and-fields.md
+  - Relationships: relationships.md
+  - Connections And Pagination: connections-and-pagination.md
+  - Filters And Ordering: filters-and-ordering.md
+  - Nodes And Relay IDs: nodes-and-relay.md
+  - Context And Extensions: context-and-extensions.md
+  - Examples: examples.md

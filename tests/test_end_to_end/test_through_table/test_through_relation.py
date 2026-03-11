@@ -126,7 +126,7 @@ async def test_load_related_through_three_levels(authors_books, test_through_cli
 async def test_load_nested_connection_with_through(authors_books, test_through_client):
     query = (
         '{ personByName(name: "%s") {'
-        " name booksConnection ( pagination: {first: 10} ) {"
+        " name booksConnection(first: 10) {"
         " edges { node { title authors { name  } } } } } }" % tolkien.name
     )
     result = test_through_client.post("/", json={"query": query}).json()

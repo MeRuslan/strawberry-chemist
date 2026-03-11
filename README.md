@@ -1,19 +1,21 @@
 # strawberry-chemist
 
-Helpers for exposing SQLAlchemy models through Strawberry GraphQL with less
-boilerplate.
+`strawberry-chemist` helps expose SQLAlchemy models through Strawberry without
+turning your GraphQL schema into generated magic.
 
-This package wraps common patterns for:
+The package is intentionally explicit. You still write the Strawberry types you
+want clients to see. That makes the DTO layer visible, keeps the public
+contract adaptable, and fits production codebases that care about query shape,
+permissions, loading behavior, and long-term schema maintenance.
 
-- generating Strawberry types from SQLAlchemy models
-- exposing model fields and relationships
-- relay-style IDs and connections
-- connection filtering, ordering, and pagination
+Chemist focuses on the parts that are repetitive and SQLAlchemy-aware:
 
-## Status
-
-This project is currently alpha. The API is usable, but you should still expect
-some rough edges and breaking changes while the standalone package settles.
+- field mapping and renaming
+- relationship loading
+- root and nested connections
+- filtering, ordering, and pagination
+- relay IDs and node lookup
+- dataloaders and selection-aware loading
 
 ## Installation
 
@@ -23,55 +25,111 @@ pip install strawberry-chemist
 
 Supported Python versions:
 
-- 3.11
-- 3.12
+- `3.11`
+- `3.12`
 
-## Minimal example
+## Quick example
 
 ```python
-from typing import Optional
-
 import strawberry
-import strawberry_chemist
-from sqlalchemy import Integer, String, select
-from sqlalchemy.orm import DeclarativeBase, Mapped, mapped_column
-from strawberry.types import Info
-
-from strawberry_chemist.gql_context import SQLAlchemyContext
+import strawberry_chemist as sc
 
 
-class Base(DeclarativeBase):
-    pass
-
-
-class Book(Base):
-    __tablename__ = "book"
-    id: Mapped[int] = mapped_column(Integer, primary_key=True)
-    title: Mapped[str] = mapped_column(String)
-
-
-@strawberry_chemist.type(model=Book)
-class BookNode:
+@sc.node(model=BookModel)
+class Book:
     title: str
+    published_year: int = sc.attr("year")
+
+
+@sc.filter(model=BookModel)
+class BookFilter(sc.FilterSet):
+    title: sc.StringFilter = sc.filter_field()
+
+
+@sc.order(model=BookModel)
+class BookOrder:
+    published_year = sc.order_field(path="year")
 
 
 @strawberry.type
 class Query:
-    @strawberry.field
-    async def book_by_title(
-        self, info: Info[SQLAlchemyContext, None], title: str
-    ) -> Optional[BookNode]:
-        async with info.context.get_session() as session:
-            return (
-                await session.execute(select(Book).where(Book.title == title))
-            ).scalar_one_or_none()
+    node = sc.node_field()
+    books: sc.Connection[Book] = sc.connection(
+        filter=BookFilter,
+        order=BookOrder,
+        pagination=sc.CursorPagination(max_limit=20),
+    )
 
 
-schema = strawberry.Schema(query=Query)
+schema = strawberry.Schema(query=Query, extensions=sc.extensions())
 ```
 
 Your GraphQL context must provide a `get_session()` async context manager that
 returns a SQLAlchemy `AsyncSession`.
+
+## Public docs
+
+The public docs live in [docs/](docs/). The published site is intended for
+GitHub Pages and is built with MkDocs.
+
+Useful entrypoints:
+
+- [Overview](docs/index.md)
+- [Getting Started](docs/getting-started.md)
+- [API Surface](docs/api-surface.md)
+- [Examples](docs/examples.md)
+
+Serve the docs locally:
+
+```bash
+uv sync --group dev
+uv run mkdocs serve
+```
+
+Build the docs locally:
+
+```bash
+uv run mkdocs build --strict
+```
+
+## Runnable examples
+
+The contract examples under `examples/v0_2_api/` can run in two modes.
+
+Against the current checkout:
+
+```bash
+scripts/run-example-local 03_connections_filters_and_ordering
+```
+
+Against the pinned published package:
+
+```bash
+scripts/run-example-published 03_connections_filters_and_ordering
+```
+
+If you want to force published-mode testing against a locally built
+distribution, point the script at a `build` output directory:
+
+```bash
+uv run python -m build --outdir /tmp/strawberry-chemist-dist
+STRAWBERRY_CHEMIST_FIND_LINKS=/tmp/strawberry-chemist-dist \
+  scripts/run-example-published 03_connections_filters_and_ordering
+```
+
+## API overview
+
+- Types and fields: `@sc.type`, `@sc.node`, `sc.attr`, `@sc.field`
+- Relationships: `sc.relationship(...)`
+- Collections: `sc.connection(...)`, `sc.Connection`, `sc.OffsetConnection`
+- Pagination: `sc.CursorPagination`, `sc.OffsetPagination`, `sc.PaginationPolicy`
+- Filters: `@sc.filter`, `sc.FilterSet`, `sc.filter_field`, `sc.manual_filter`
+- Ordering: `@sc.order`, `sc.order_field`, `sc.manual_order`
+- Relay: `sc.node_field()`, `sc.node_lookup(...)`
+- Schema integration: `sc.extensions()`
+
+Each part of the surface has a dedicated public docs page and at least one
+example reference in [docs/examples.md](docs/examples.md).
 
 ## Development
 
@@ -81,19 +139,12 @@ Run the default non-Postgres test suite:
 uv run pytest
 ```
 
-Run formatter and type checks:
+Run formatting and type checks:
 
 ```bash
 uv run pre-commit run --all-files
+uv run mypy
 ```
 
-Small runnable examples live in [examples/](examples/).
-
-## Changelog
-
-Release notes live in [CHANGELOG.md](CHANGELOG.md).
-
-## Limitations
-
-Current behavioral constraints and relay ID caveats are documented in
-[LIMITATIONS.md](LIMITATIONS.md).
+Release notes live in [CHANGELOG.md](CHANGELOG.md). Current limitations are
+documented in [LIMITATIONS.md](LIMITATIONS.md).

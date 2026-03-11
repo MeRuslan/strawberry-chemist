@@ -19,6 +19,7 @@ from strawberry.object_type import _wrap_dataclass
 from . import utils
 from .fields.field import StrawberrySQLAlchemyField, StrawberrySQLAlchemyRelationField
 from .fields.types import resolve_model_field_type, is_optional
+from .relay.public import build_node_id_field, register_node_type
 
 WARN_ON_TYPE_MISMATCH: bool = True
 
@@ -43,6 +44,14 @@ def get_model_field(
     return getattr(container.model, field_name)
 
 
+def maybe_get_model_field(
+    container: StrawberrySQLAlchemyType, field_name: Optional[str]
+) -> Optional[InstrumentedAttribute]:
+    if not field_name or not hasattr(container.model, field_name):
+        return None
+    return getattr(container.model, field_name)
+
+
 def enums(
     ann: Optional[Type],
     model_type: Optional[Type],
@@ -54,10 +63,12 @@ def enums(
 
 def warn_on_type_mismatch(
     container_type: StrawberrySQLAlchemyType,
-    model_field: InstrumentedAttribute,
+    model_field: Optional[InstrumentedAttribute],
     field_annotation: StrawberryAnnotation,
     initial_field: StrawberrySQLAlchemyField,
 ):
+    if model_field is None:
+        return
     if utils.is_auto(field_annotation):
         return
     if (
@@ -109,32 +120,54 @@ def get_field(
     if field_annotation is None:
         field_annotation = StrawberryAnnotation(None)
     initial_field = utils.get_type_attr(container_type.origin, field_name)
+    if not isinstance(initial_field, StrawberryField):
+        initial_field = StrawberrySQLAlchemyField(
+            python_name=field_name,
+            graphql_name=None,
+            type_annotation=field_annotation,
+        )
 
     # Every connection, custom relation, proper annotation will fall here
     #   since they are properly defined fields in schema.
-    sqla_name: str = getattr(initial_field, "sqlalchemy_name", None)
-    sqla_name = sqla_name or field_name
-    model_field = get_model_field(container_type, sqla_name)
-    if WARN_ON_TYPE_MISMATCH:
-        warn_on_type_mismatch(
-            container_type, model_field, field_annotation, initial_field
-        )
+    sqla_name: str = getattr(initial_field, "sqlalchemy_name", None) or field_name
+    model_field = maybe_get_model_field(container_type, sqla_name)
 
-    if isinstance(model_field.property, RelationshipProperty):
+    if isinstance(initial_field, StrawberrySQLAlchemyRelationField):
+        model_field = get_model_field(container_type, sqla_name)
+        if WARN_ON_TYPE_MISMATCH:
+            warn_on_type_mismatch(
+                container_type, model_field, field_annotation, initial_field
+            )
         field = StrawberrySQLAlchemyRelationField.from_field(
             initial_field, container_type
         )
         field.relationship_property = model_field.property
-    elif isinstance(model_field.property, (ColumnProperty, CompositeProperty)):
+    elif model_field and isinstance(
+        model_field.property, (ColumnProperty, CompositeProperty)
+    ):
+        if WARN_ON_TYPE_MISMATCH:
+            warn_on_type_mismatch(
+                container_type, model_field, field_annotation, initial_field
+            )
+        field = StrawberrySQLAlchemyField.from_field(initial_field, container_type)
+    elif model_field and isinstance(model_field.property, RelationshipProperty):
+        if WARN_ON_TYPE_MISMATCH:
+            warn_on_type_mismatch(
+                container_type, model_field, field_annotation, initial_field
+            )
+        field = StrawberrySQLAlchemyRelationField.from_field(
+            initial_field, container_type
+        )
+        field.relationship_property = model_field.property
+    elif isinstance(initial_field, StrawberrySQLAlchemyField):
         field = StrawberrySQLAlchemyField.from_field(initial_field, container_type)
     else:
         raise Exception(f"Unknown SQLalchemy field type: {model_field.property=}")
     field.sqlalchemy_name = sqla_name
     field.python_name = field_name
 
-    if field_name in container_type.origin.__dict__.get("__annotations__", {}):
-        # store origin container type for further usage
-        field.origin_container_type = container_type
+    # store origin container type for further usage
+    field.origin_container_type = container_type
 
     if field_annotation:
         # annotation of field is used as a class type
@@ -142,6 +175,12 @@ def get_field(
         field.is_auto = utils.is_auto(field_annotation)
 
     if field.is_auto:
+        if model_field is None:
+            raise NotImplementedError(
+                f"Could not resolve type automatically for field '{field_name}' in {container_type.origin}.\n"
+                "This field does not map directly to a SQLAlchemy model attribute, "
+                "so it needs an explicit return annotation."
+            )
         field_type = resolve_model_field_type(model_field, container_type)
         if not field_type:
             raise NotImplementedError(
@@ -173,36 +212,33 @@ def get_fields(container_type: StrawberrySQLAlchemyType) -> list[StrawberryField
     annotations = get_annotations(container_type.origin)
     fields = {}
 
-    for field in dataclasses.fields(container_type.origin):
-        if not isinstance(field, StrawberryField):
-            continue
-        # can't use type() - it's overloaded in StrawberryField
-        # collect and preserve pure strawberry fields, and those fields of ours that have resolvers
-        if field.base_resolver or not isinstance(field, StrawberrySQLAlchemyField):
-            fields[field.name] = field
-
-    # collect and preserve fields with resolver
+    # collect and preserve pure strawberry fields
     for field in dataclasses.fields(container_type.origin):
         field: StrawberryField
-        if isinstance(field, StrawberryField) and field.base_resolver:
+        if isinstance(field, StrawberryField) and not isinstance(
+            field, StrawberrySQLAlchemyField
+        ):
             fields[field.name] = field
 
-    # collect other annotated fields - process them
+    # collect annotated fields - process our fields and implicit mappings
     for field_name, field_annotation in annotations.items():
         if field_name in fields:
             continue
         field = get_field(container_type, field_name, field_annotation)
         fields[field_name] = field
 
-    # collect non-annotated strawberry-chemist fields
+    # collect non-annotated fields defined by decorators
     for field_name in dir(container_type.origin):
         if field_name in fields:
             continue
         attr = getattr(container_type.origin, field_name)
-        if not utils.is_sqlalchemy_field(attr):
+        if utils.is_sqlalchemy_field(attr):
+            field = get_field(container_type, field_name)
+            fields[field_name] = field
             continue
-        field = get_field(container_type, field_name)
-        fields[field_name] = field
+        if isinstance(attr, StrawberryField):
+            fields[field_name] = attr
+            continue
 
     return list(fields.values())
 
@@ -262,6 +298,42 @@ def type(model, *args, **kwargs):
     def wrapper(cls):
         wrapped = _wrap_dataclass(cls)
         return process_type(wrapped, model, **kwargs)
+
+    return wrapper
+
+
+def node(model, *args, ids=None, codec=None, name=None, **kwargs):
+    def wrapper(cls):
+        if "id" not in cls.__dict__:
+            annotations = dict(getattr(cls, "__annotations__", {}))
+            annotations.setdefault("id", strawberry.ID)
+            cls.__annotations__ = annotations
+            setattr(
+                cls,
+                "id",
+                build_node_id_field(
+                    model=model,
+                    node_name=name or cls.__name__,
+                    ids=ids,
+                    codec=codec,
+                ),
+            )
+
+        wrapped = _wrap_dataclass(cls)
+        processed = process_type(
+            wrapped,
+            model,
+            name=name,
+            **kwargs,
+        )
+        register_node_type(
+            processed,
+            model=model,
+            ids=ids,
+            codec=codec,
+            node_name=name or processed.__strawberry_definition__.name,
+        )
+        return processed
 
     return wrapper
 

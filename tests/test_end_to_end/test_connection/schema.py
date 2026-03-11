@@ -7,12 +7,7 @@ from sqlalchemy.orm import declarative_base, relationship, Mapped, mapped_column
 from strawberry.types import Info
 
 import strawberry_chemist
-from strawberry_chemist.extentions import DataLoadersExtension, InfoCacheExtension
 from strawberry_chemist.gql_context import SQLAlchemyContext
-from strawberry_chemist.pagination import RelayConnection
-from strawberry_chemist.relay import NodeEdge, Node
-from strawberry_chemist.filters import StrawberrySQLAlchemyFilter
-from strawberry_chemist.order import StrawberrySQLAlchemyOrdering, OrderAD
 
 Base = declarative_base()
 
@@ -36,13 +31,13 @@ class Person(Base):
 
 
 @strawberry_chemist.type(model=Person)
-class PersonNode(Node):
+class PersonNode:
     name: str
-    books: RelayConnection["BookNode"] = strawberry_chemist.relay_connection_field()
+    books: strawberry_chemist.Connection["BookNode"] = strawberry_chemist.connection()
 
 
 @strawberry_chemist.type(model=Book)
-class BookNode(Node):
+class BookNode:
     title: str
     year: int
     author: Optional[PersonNode]
@@ -58,16 +53,17 @@ class BookAgeFilter:
     greater_than: Optional[int] = None
 
 
-book_year_filter = StrawberrySQLAlchemyFilter(
-    input_type=BookAgeFilter,
-    input_filter_map={
-        "less_than": lambda query, value: (
-            query.where(Book.year < value) if value else query
-        ),
-        "greater_than": lambda query, value: (
-            query.where(Book.year > value) if value else query
-        ),
-    },
+def apply_book_year_filter(query, value: BookAgeFilter, ctx):
+    if value.less_than is not None:
+        query = query.where(Book.year < value.less_than)
+    if value.greater_than is not None:
+        query = query.where(Book.year > value.greater_than)
+    return query
+
+
+book_year_filter = strawberry_chemist.manual_filter(
+    input=BookAgeFilter,
+    apply=apply_book_year_filter,
 )
 
 
@@ -80,33 +76,43 @@ class OrderEnum(Enum):
 @strawberry.input
 class BookOrder:
     field: OrderEnum
-    order: OrderAD
+    order: strawberry_chemist.SortDirection
 
 
-book_order = StrawberrySQLAlchemyOrdering(
-    input_type=BookOrder,
-    resolve_ordering_map={
-        OrderEnum.YEAR: lambda query: (query, Book.year),
-        OrderEnum.TITLE: lambda query: (query, Book.title),
-    },
+def apply_book_order(query, value: BookOrder, ctx):
+    if value.field == OrderEnum.YEAR:
+        order_column = Book.year
+    else:
+        order_column = Book.title
+
+    if value.order == strawberry_chemist.SortDirection.DESC:
+        return query.order_by(order_column.desc())
+    return query.order_by(order_column.asc())
+
+
+book_order = strawberry_chemist.manual_order(
+    input=BookOrder,
+    name="order",
+    python_name="order",
+    apply=apply_book_order,
 )
 
 
 @strawberry.type
-class Query(NodeEdge):
-    people_connection: RelayConnection["PersonNode"] = (
-        strawberry_chemist.relay_connection_field()
+class Query:
+    people_connection: strawberry_chemist.Connection["PersonNode"] = (
+        strawberry_chemist.connection()
     )
-    books_connection: RelayConnection["BookNode"] = (
-        strawberry_chemist.relay_connection_field()
-    )
-
-    book_year_filter_connection: RelayConnection["BookNode"] = (
-        strawberry_chemist.relay_connection_field(filter=book_year_filter)
+    books_connection: strawberry_chemist.Connection["BookNode"] = (
+        strawberry_chemist.connection()
     )
 
-    book_order_connection: RelayConnection["BookNode"] = (
-        strawberry_chemist.relay_connection_field(order=book_order)
+    book_year_filter_connection: strawberry_chemist.Connection["BookNode"] = (
+        strawberry_chemist.connection(filter=book_year_filter)
+    )
+
+    book_order_connection: strawberry_chemist.Connection["BookNode"] = (
+        strawberry_chemist.connection(order=book_order)
     )
 
     @strawberry.field
@@ -119,6 +125,4 @@ class Query(NodeEdge):
             ).scalar_one_or_none()
 
 
-schema = strawberry.Schema(
-    query=Query, extensions=[DataLoadersExtension, InfoCacheExtension]
-)
+schema = strawberry.Schema(query=Query, extensions=strawberry_chemist.extensions())

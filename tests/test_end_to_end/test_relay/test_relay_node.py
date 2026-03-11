@@ -2,22 +2,13 @@ from typing import List
 
 import pytest
 import strawberry
-from bidict import bidict
-from sqlalchemy import select, Column, Integer
-from strawberry.annotation import StrawberryAnnotation
+from sqlalchemy import Integer, select
+from sqlalchemy.orm import DeclarativeBase, Mapped, mapped_column
 from strawberry.utils.logging import StrawberryLogger
 
-import strawberry_chemist
-from strawberry_chemist import relay
-from strawberry_chemist.relay import NodeEdge, Node
-from strawberry_chemist.relay.base import (
-    compose_id_using_instance,
-    node_type_to_int_bijection,
-    compose_id_using_class,
-    convert_and_check_exists_node_id,
-)
+import strawberry_chemist as sc
+from strawberry_chemist.relay.public import compose_node_id, get_node_definition
 from tests.test_end_to_end.test_relay.schema import BookType, Base, Book
-from strawberry_chemist.utils import unwrap_type
 
 
 def test_simple_query(test_relay_client):
@@ -26,19 +17,10 @@ def test_simple_query(test_relay_client):
 
 
 @pytest.fixture
-def relay_mock_node_inheritance(monkeypatch):
-    node_type_to_int_bijection.cache_clear()
-    relay.base.sqla_model_registry = None
-    monkeypatch.setattr(Node, "__subclasses__", lambda: [BookType])
-
-
-@pytest.fixture
-async def relay_with_books(mock_sqlite_sqla_session, relay_mock_node_inheritance):
-    # create tables
+async def relay_with_books(mock_sqlite_sqla_session):
     async with mock_sqlite_sqla_session as session:
         await (await session.connection()).run_sync(Base.metadata.create_all)
 
-    # add a couple of books to the database
     async with mock_sqlite_sqla_session as session:
         session.add_all(
             [
@@ -47,84 +29,81 @@ async def relay_with_books(mock_sqlite_sqla_session, relay_mock_node_inheritance
             ]
         )
         await session.commit()
-        books = (await session.execute(select(Book))).scalars().all()
+        books = (
+            (await session.execute(select(Book).order_by(Book.id.asc())))
+            .scalars()
+            .all()
+        )
 
     return books
 
 
-@pytest.mark.asyncio
-async def test_node_edge_pure_type_inheritance():
+def test_node_field_is_explicit_new_public_api():
+    class Base(DeclarativeBase):
+        pass
+
+    class Dummy(Base):
+        __tablename__ = "dummy"
+        id: Mapped[int] = mapped_column(Integer, primary_key=True)
+
+    @sc.node(model=Dummy)
+    class DummyNode:
+        pass
+
     @strawberry.type
-    class Query(NodeEdge): ...
+    class Query:
+        node = sc.node_field(allowed_types=(DummyNode,))
 
     schema = strawberry.Schema(query=Query)
-    # chesk that the schema has node edge
-    assert schema.schema_converter.type_map["Query"].definition.name == "Query"
-    assert schema.schema_converter.type_map["Query"].definition.origin == Query
-    # check that query has node field
-    node = schema.schema_converter.type_map["Query"].definition.fields[0]
-    assert node.name == "node"
-    assert node.arguments[0].graphql_name == "id"
-    assert node.arguments[0].type_annotation == StrawberryAnnotation(strawberry.ID)
-    assert unwrap_type(node.type) == Node
+    field = schema.schema_converter.type_map["Query"].definition.fields[0]
+
+    assert field.name == "node"
+    assert field.arguments[0].python_name == "id"
+    assert field.arguments[0].type_annotation.annotation is strawberry.ID
 
 
 @pytest.mark.asyncio
-async def test_node_sqla_model_inheritance(test_relay_client):
+async def test_node_type_uses_registered_definition(test_relay_client):
     schema = test_relay_client.app.schema
     book_type = schema.schema_converter.type_map["BookType"]
+
     assert book_type.definition.name == "BookType"
     assert book_type.definition.origin == BookType
-    # check that book type implements Node interface
-    assert book_type.definition.interfaces[0].name == "Node"
-    assert book_type.definition.interfaces[0].origin == Node
+    definition = get_node_definition(BookType)
+    assert definition is not None
+    assert definition.model is Book
+    assert definition.ids == ("id",)
 
 
 @pytest.mark.asyncio
 async def test_node_default_ids(relay_with_books, test_relay_client):
-    books: List = relay_with_books
+    books: List[Book] = relay_with_books
+    definition = get_node_definition(BookType)
+    assert definition is not None
+
     query = "{ allBooks { id title } }"
     result = test_relay_client.post("/", json={"query": query}).json()
 
     assert "errors" not in result
     assert "data" in result
-    # check ids
-    assert set(book["id"] for book in result["data"]["allBooks"]) == set(
-        compose_id_using_instance(book, book.id) for book in books
-    )
-    # check titles
-    assert set(book["title"] for book in result["data"]["allBooks"]) == set(
+    assert set(book["id"] for book in result["data"]["allBooks"]) == {
+        compose_node_id(book, definition) for book in books
+    }
+    assert set(book["title"] for book in result["data"]["allBooks"]) == {
         book.title for book in books
-    )
-
-
-@pytest.mark.asyncio
-async def test_node_custom_model_mapping_for_id_generation(
-    relay_with_books, test_relay_client
-):
-    books: List = relay_with_books
-    # get ids before types are mapped
-    ids_using_default = set(compose_id_using_instance(book, book.id) for book in books)
-    # purge the cache and clear the mapping
-    node_type_to_int_bijection.cache_clear()
-    relay.base.sqla_model_registry = bidict({1: Book})
-
-    query = "{ allBooks { id title } }"
-    response = test_relay_client.post("/", json={"query": query})
-    result = response.json()
-
-    assert "errors" not in result
-    assert "data" in result
-    # check ids do not match the default ones
-    assert ids_using_default != set(book["id"] for book in result["data"]["allBooks"])
+    }
 
 
 @pytest.mark.asyncio
 async def test_node_get_by_id(relay_with_books, test_relay_client):
-    books: List = relay_with_books
-    book_relay_id = compose_id_using_instance(books[1], books[1].id)
+    books: List[Book] = relay_with_books
+    definition = get_node_definition(BookType)
+    assert definition is not None
+    book_relay_id = compose_node_id(books[1], definition)
 
-    query = f'{{ node(id: "{book_relay_id}") {{ __typename id }} }}'
+    query = (
+        f'{{ node(id: "{book_relay_id}") {{ __typename ... on BookType {{ id }} }} }}'
+    )
     response = test_relay_client.post("/", json={"query": query})
     result = response.json()
 
@@ -134,12 +113,14 @@ async def test_node_get_by_id(relay_with_books, test_relay_client):
 
 
 @pytest.mark.asyncio
-async def test_get_by_id_object_field(relay_with_books, test_relay_client):
-    books: List = relay_with_books
-    book_relay_id = compose_id_using_instance(books[1], books[1].id)
+async def test_get_by_id_node_field(relay_with_books, test_relay_client):
+    books: List[Book] = relay_with_books
+    definition = get_node_definition(BookType)
+    assert definition is not None
+    book_relay_id = compose_node_id(books[1], definition)
     book_title = books[1].title
 
-    query = f'{{ bookById(id: "{book_relay_id}") {{ __typename id title }} }}'
+    query = f'{{ bookById(id: "{book_relay_id}") {{ __typename ... on BookType {{ id title }} }} }}'
     response = test_relay_client.post("/", json={"query": query})
     result = response.json()
 
@@ -149,63 +130,30 @@ async def test_get_by_id_object_field(relay_with_books, test_relay_client):
 
 
 @pytest.mark.asyncio
-async def test_get_by_id_object_field_no_permission(
+async def test_get_by_id_node_field_no_permission(
     relay_with_books, test_relay_client, monkeypatch
 ):
-    books: List = relay_with_books
-    book_relay_id = compose_id_using_instance(books[1], books[1].id)
+    books: List[Book] = relay_with_books
+    definition = get_node_definition(BookType)
+    assert definition is not None
+    book_relay_id = compose_node_id(books[1], definition)
 
-    query = (
-        f'{{ noPermissionBookById(id: "{book_relay_id}") {{ __typename id title }} }}'
-    )
+    query = f'{{ noPermissionBookById(id: "{book_relay_id}") {{ __typename ... on BookType {{ id title }} }} }}'
     with monkeypatch.context() as m:
-        # don't log errors, we expect them
         m.setattr(StrawberryLogger, "error", lambda *args, **kwargs: None)
         with pytest.raises(PermissionError):
             test_relay_client.post("/", json={"query": query}).json()
-            test_relay_client.post("/", json={"query": query})
 
 
 @pytest.mark.asyncio
-async def test_get_by_id_object_field_not_found(relay_with_books, test_relay_client):
-    book_relay_id = compose_id_using_class(Book, 320)
+async def test_get_by_id_node_field_not_found(relay_with_books, test_relay_client):
+    definition = get_node_definition(BookType)
+    assert definition is not None
+    book_relay_id = definition.codec.encode(definition.node_name, ("320",))
 
-    query = f'{{ bookById(id: "{book_relay_id}") {{ __typename id title }} }}'
+    query = f'{{ bookById(id: "{book_relay_id}") {{ __typename ... on BookType {{ id title }} }} }}'
     response = test_relay_client.post("/", json={"query": query})
     result = response.json()
 
     assert "errors" not in result
     assert result["data"]["bookById"] is None
-
-
-def test_relay_include_int_identity_model(monkeypatch):
-    class ModelWithIntIdentity(Base):
-        __tablename__ = "int_identity"
-        __int_identity__ = 1
-        id = Column(Integer, primary_key=True)
-
-    @strawberry_chemist.type(model=ModelWithIntIdentity)
-    class ModelWithIntIdentityType(Node): ...
-
-    node_type_to_int_bijection.cache_clear()
-    relay.base.sqla_model_registry = None
-    monkeypatch.setattr(Node, "__subclasses__", lambda: [ModelWithIntIdentityType])
-    real_bijection = node_type_to_int_bijection()
-    assert real_bijection[ModelWithIntIdentity.__int_identity__] == ModelWithIntIdentity
-
-
-@pytest.mark.asyncio
-async def test_get_exists_by_relay_id(
-    mock_sqlite_sqla_session, relay_with_books, test_relay_client
-):
-    books: List = relay_with_books
-    book_relay_id = compose_id_using_instance(books[1], books[1].id)
-    not_book_relay_id = compose_id_using_class(Book, -1)
-    exists = await convert_and_check_exists_node_id(
-        id_=book_relay_id, model=Book, session=mock_sqlite_sqla_session
-    )
-    not_exists = await convert_and_check_exists_node_id(
-        id_=not_book_relay_id, model=Book, session=mock_sqlite_sqla_session
-    )
-    assert exists
-    assert not not_exists

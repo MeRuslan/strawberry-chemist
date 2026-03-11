@@ -1,65 +1,70 @@
-from abc import ABC, abstractmethod
-from typing import Any, TypeVar, Tuple, List
+from __future__ import annotations
+
+from typing import Any, Hashable, Protocol, TypeGuard, TypeVar, runtime_checkable
 
 from sqlalchemy.sql import Select
-from strawberry import UNSET
-from strawberry.annotation import StrawberryAnnotation
 from strawberry.arguments import StrawberryArgument
-from strawberry.type import StrawberryType
-
-# from strawberry_chemist.type import StrawberrySQLAlchemyType
 from strawberry.types.nodes import SelectedField
 
+
+PageInputType = TypeVar("PageInputType")
 GenericPaginationReturnType = TypeVar("GenericPaginationReturnType")
+PaginationResultType = TypeVar("PaginationResultType")
 
 
-class StrawberrySQLAlchemyPaginationBase(ABC):
-    python_name: str
-    gql_name: str
-    default: StrawberryType
-    argument_type: type(StrawberryType)
-
-    def __init__(
+@runtime_checkable
+class PaginationPolicy(
+    Protocol[PageInputType, GenericPaginationReturnType, PaginationResultType]
+):
+    def get_fields_from_typed_request(
         self,
-        python_name="pagination",
-        gql_name="pagination",
-        default=UNSET,
-    ):
-        self.python_name = python_name
-        self.gql_name = gql_name
-        self.default = default
+        selected_fields: list[SelectedField],
+    ) -> list[SelectedField]: ...
 
-    @property
-    def argument(self) -> StrawberryArgument:
-        return StrawberryArgument(
-            default=self.default,
-            description=None,
-            graphql_name=self.gql_name,
-            python_name=self.python_name,
-            type_annotation=StrawberryAnnotation(self.argument_type),
-        )
+    def cache_key(self, page: PageInputType) -> Hashable: ...
 
-    @abstractmethod
-    def get_fields_from_typed_request(self, selected_fields: List[SelectedField]):
-        pass
+    def paginate_query(self, query: Select, page: PageInputType) -> Select: ...
 
-    @abstractmethod
-    def paginate_query(
-        self,
-        query: Select,
-        page: Tuple,
-    ) -> Select:
-        pass
-
-    @abstractmethod
     def paginate_result(
         self,
-        result: Any,
-    ) -> StrawberryType:
-        pass
+        result: list[GenericPaginationReturnType],
+        **kwargs: Any,
+    ) -> PaginationResultType: ...
 
-    # @staticmethod
-    # async def paginate(
-    #     self, connection: Any, select_query: Select, page: Tuple, info: Info
-    # ):
-    #     return NotImplemented
+
+@runtime_checkable
+class FlatPaginationPolicy(
+    PaginationPolicy[PageInputType, GenericPaginationReturnType, PaginationResultType],
+    Protocol[PageInputType, GenericPaginationReturnType, PaginationResultType],
+):
+    @property
+    def arguments(self) -> list[StrawberryArgument]: ...
+
+    def extract_pagination_kwargs(self, kwargs: dict[str, Any]) -> PageInputType: ...
+
+
+@runtime_checkable
+class NestedPaginationPolicy(
+    PaginationPolicy[PageInputType, GenericPaginationReturnType, PaginationResultType],
+    Protocol[PageInputType, GenericPaginationReturnType, PaginationResultType],
+):
+    python_name: str
+
+    @property
+    def argument(self) -> StrawberryArgument: ...
+
+
+@runtime_checkable
+class CountedPaginationPolicy(
+    PaginationPolicy[PageInputType, GenericPaginationReturnType, PaginationResultType],
+    Protocol[PageInputType, GenericPaginationReturnType, PaginationResultType],
+):
+    include_total_count: bool
+
+    def count_query(self, query: Select) -> Select: ...
+
+
+def is_flat_pagination_policy(
+    pagination: object,
+) -> TypeGuard[FlatPaginationPolicy[Any, Any, Any]]:
+    return hasattr(pagination, "arguments")
