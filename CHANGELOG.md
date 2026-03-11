@@ -4,7 +4,7 @@ All notable changes to this project will be documented in this file.
 
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
 
-## [Unreleased]
+## [0.1.0] - 2026-03-11
 
 ### Added
 
@@ -22,3 +22,5 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
 - Renamed the import package from `strawberry_sqlalchemy` to `strawberry_chemist`.
 - Made non-Postgres tests the default pytest selection.
 - Moved Postgres-only tests under the `psql` marker.
+
+[0.1.0]: https://github.com/MeRuslan/strawberry-chemist/releases/tag/0.1.0
