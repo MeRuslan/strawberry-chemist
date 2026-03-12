@@ -66,6 +66,12 @@ class BookNode:
     year: int
     author: Optional[PersonNode]
 
+    @strawberry_chemist.relationship("author", select=["name"], parent_select=["year"])
+    def author_label(self, author: Optional["Person"]) -> Optional[str]:
+        if author is None:
+            return None
+        return f"{author.name} ({self.year})"
+
     @strawberry_chemist.field(select=["year"])
     def years_since_published(self, year: int) -> int:
         return current_year - year

@@ -1,12 +1,11 @@
 from __future__ import annotations
 
 from contextlib import asynccontextmanager
-
 import strawberry
 import strawberry_chemist as sc
 from sqlalchemy.ext.asyncio import AsyncSession, async_sessionmaker
 
-from db import BookModel
+from db import AuthorModel, BookModel
 
 
 class AppContext:
@@ -36,6 +35,25 @@ class Book:
     ranking: int | None
 
 
+@sc.type(model=AuthorModel)
+class Author:
+    name: str
+
+    @sc.connection(
+        source="books",
+        parent_select=["address"],
+        default_order_by=(BookModel.year.asc(),),
+        pagination=sc.CursorPagination(max_limit=20),
+    )
+    def books_for_address(
+        self,
+        loaded_connection: sc.Connection[BookModel],
+    ) -> sc.Connection[Book]:
+        if self.address:
+            return loaded_connection
+        return loaded_connection
+
+
 @sc.filter(model=BookModel)
 class BookFilter(sc.FilterSet):
     title: sc.StringFilter = sc.filter_field()
@@ -56,6 +74,10 @@ class BookOrder:
 
 @strawberry.type
 class Query:
+    authors: sc.Connection[Author] = sc.connection(
+        default_order_by=(AuthorModel.name.asc(),),
+        pagination=sc.CursorPagination(max_limit=20),
+    )
     books: sc.Connection[Book] = sc.connection(
         where=lambda: BookModel.visible.is_(True),
         filter=BookFilter,

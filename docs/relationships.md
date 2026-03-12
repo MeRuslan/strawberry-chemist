@@ -12,6 +12,7 @@ The API is intentionally flexible enough to cover:
 - renamed relationships
 - server-scoped relationships
 - relationship-backed computed fields
+- parent-aware relationship transforms via `parent_select=...`
 - full-row loading when a computation needs it
 
 ## Simple relationship
@@ -45,9 +46,29 @@ classic_books: list["Book"] = sc.relationship(
 
 ```python
 @sc.relationship("books", select=["title", "year"])
-def publication_labels(self, books: list["Book"]) -> list[str]:
+def publication_labels(
+    self,
+    books: list[BookModel],
+) -> list[str]:
     return [f"{book.title} ({book.year})" for book in books]
 ```
+
+Use `parent_select=` when the computation also needs parent-row attributes that
+are not otherwise selected.
+
+```python
+@sc.relationship("books", select=["title"], parent_select=["name"])
+def labeled_books(
+    self,
+    books: list[BookModel],
+) -> list[str]:
+    return [f"{self.name}: {book.title}" for book in books]
+```
+
+The split is deliberate:
+
+- `select=` loads child-row fields from the related model
+- `parent_select=` loads extra parent-row fields from `self` / `root`
 
 Use `load="full"` when the computation needs full related rows instead of only
 selected columns.

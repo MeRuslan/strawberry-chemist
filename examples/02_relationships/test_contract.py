@@ -171,3 +171,36 @@ async def test_full_load_relationship_transform_can_use_unselected_columns(
             },
         ]
     }
+
+
+async def test_relationship_parent_select_supports_parent_aware_transforms(
+    env: ExampleEnv,
+) -> None:
+    data = await execute_ok(
+        env,
+        """
+        query {
+          authors {
+            name
+            labeledBooks
+          }
+        }
+        """,
+    )
+
+    assert data == {
+        "authors": [
+            {
+                "name": "J.R.R. Tolkien",
+                "labeledBooks": [
+                    "J.R.R. Tolkien: The Hobbit",
+                    "J.R.R. Tolkien: The Lord of the Rings",
+                    "J.R.R. Tolkien: The Silmarillion",
+                ],
+            },
+            {
+                "name": "Ursula K. Le Guin",
+                "labeledBooks": ["Ursula K. Le Guin: A Wizard of Earthsea"],
+            },
+        ]
+    }

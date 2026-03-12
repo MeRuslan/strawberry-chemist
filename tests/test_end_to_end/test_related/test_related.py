@@ -251,6 +251,21 @@ async def test_relationship_select_loads_only_required_fields(
 
 
 @pytest.mark.asyncio
+async def test_relationship_parent_select_loads_parent_fields_for_transforms(
+    relay_with_authors_books, test_relay_client
+):
+    author_name = grr_martin.name
+    query = '{ personByName(name: "%s") { name books { authorLabel } } }' % author_name
+
+    result = test_relay_client.post("/", json={"query": query}).json()
+
+    assert "errors" not in result
+    assert result["data"]["personByName"]["books"] == [
+        {"authorLabel": f"{grr_martin.name} ({ice_fire.year})"}
+    ]
+
+
+@pytest.mark.asyncio
 async def test_relationship_load_full_allows_full_row_transforms(
     relay_with_authors_books, test_relay_client
 ):

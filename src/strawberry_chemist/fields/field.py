@@ -25,6 +25,18 @@ def camel_case(s: str):
 RelationshipLoad: TypeAlias = Literal["selected", "full"]
 
 
+def _dedupe_field_names(*groups: Iterable[str]) -> List[str]:
+    result: List[str] = []
+    seen: set[str] = set()
+    for group in groups:
+        for name in group:
+            if name in seen:
+                continue
+            seen.add(name)
+            result.append(name)
+    return result
+
+
 def _reject_legacy_kwargs(
     public_name: str,
     kwargs: Dict[str, Any],
@@ -221,11 +233,13 @@ class StrawberrySQLAlchemyRelationField(StrawberrySQLAlchemyField):
 
     load_simple_fields_from_sqlalchemy = True
     relationship_property: RelationshipProperty[Any] | None
+    parent_select_fields: tuple[str, ...]
 
     def __init__(
         self,
         where: Optional[Sequence[Any]] = None,
         relationship_select: Optional[Iterable[str]] = None,
+        parent_select: Optional[Iterable[str]] = None,
         load_full: bool = False,
         **kwargs,
     ):
@@ -233,6 +247,7 @@ class StrawberrySQLAlchemyRelationField(StrawberrySQLAlchemyField):
         # very important field, it's set in type generation
         self.relationship_property = None
         self.relationship_select = tuple(relationship_select or ())
+        self.parent_select_fields = tuple(parent_select or ())
         self.load_full = load_full
         super().__init__(**kwargs)
 
@@ -246,10 +261,10 @@ class StrawberrySQLAlchemyRelationField(StrawberrySQLAlchemyField):
     @cached_property
     def needs_parent_fields(self) -> List[str]:
         # traverse relationship property and get all local columns
-        result = []
-        for key in self.require_relationship_property().local_columns:
-            result.append(key.name)
-        return result
+        relationship_key_names = [
+            key.name for key in self.require_relationship_property().local_columns
+        ]
+        return _dedupe_field_names(relationship_key_names, self.parent_select_fields)
 
     @cached_property
     def sqlalchemy_model(self) -> DeclarativeMeta:
@@ -352,9 +367,10 @@ class StrawberrySQLAlchemyRelationField(StrawberrySQLAlchemyField):
         result = await self.resolver(source, info, *args, **kwargs)
         # if there was a base resolver, use it
         if self.base_resolver:
+            resolver_kwargs: Dict[str, Any] = {}
             kwargs = self.inject_resolver_kwargs(
                 source,
-                kwargs,
+                resolver_kwargs,
                 relationship_value=result,
             )
             res = StrawberryField.get_result(self, source, info, args, kwargs)
@@ -445,6 +461,7 @@ def relationship(
     *,
     where=None,
     select=None,
+    parent_select: Optional[Iterable[str]] = None,
     load: RelationshipLoad = "selected",
     name=None,
     default=UNSET,
@@ -476,6 +493,7 @@ def relationship(
         sqlalchemy_name=source,
         default=default,
         relationship_select=select,
+        parent_select=parent_select,
         load_full=load == "full",
         **kwargs,
     )

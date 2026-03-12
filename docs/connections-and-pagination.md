@@ -13,6 +13,7 @@ Connections are also intentionally flexible. The same API covers:
 - relationship-backed collections
 - server-scoped collections with `where=...`
 - server-owned default ordering with `default_order_by=...`
+- parent-aware nested connections with `parent_select=...`
 - filter and order arguments
 - flat pagination arguments
 - nested `pagination:` input objects for compatibility-sensitive schemas
@@ -40,6 +41,33 @@ class Author:
         order=BookOrder,
     )
 ```
+
+Use `parent_select=` when a nested connection resolver needs parent-row fields
+in addition to the paginated related collection.
+
+```python
+@sc.connection(source="books", parent_select=["name"])
+def books_for_author(
+    self,
+    loaded_connection: sc.Connection[BookModel],
+) -> sc.Connection[Book]:
+    if self.name:
+        return loaded_connection
+    return loaded_connection
+```
+
+The injected resolver argument is a hidden runtime value, not a GraphQL input.
+For connections, that runtime value is the loaded connection wrapper whose nodes
+are still ORM rows.
+
+As with relationships, the split is:
+
+- `parent_select=` for extra fields on the parent row
+- `where=`, `filter=`, `order=`, `default_order_by=`, and `pagination=`
+  for the child collection
+
+`parent_select=` only applies to relationship-backed connections. Root
+connections should not declare it.
 
 ## Scoped connection
 

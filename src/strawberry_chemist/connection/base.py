@@ -3,6 +3,7 @@ from functools import cached_property
 from typing import Any, List, Optional, assert_never
 
 from sqlalchemy.orm import DeclarativeMeta
+from strawberry import LazyType
 from strawberry.types.arguments import StrawberryArgument
 from strawberry.types import Info
 
@@ -48,7 +49,10 @@ class SQLAlchemyBaseConnectionField(StrawberrySQLAlchemyRelationField):
     def primary_type(self):
         unwrapped_type = utils.unwrap_type(self.type)
         type_var = unwrapped_type.__strawberry_definition__.type_var_map
-        return type_var[GenericPaginationReturnType.__name__]
+        type_ = type_var[GenericPaginationReturnType.__name__]
+        if isinstance(type_, LazyType):
+            type_ = type_.resolve_type()
+        return type_
 
     async def resolver(
         self,
@@ -58,6 +62,12 @@ class SQLAlchemyBaseConnectionField(StrawberrySQLAlchemyRelationField):
         **kwargs: Any,
     ) -> Any:
         assert info is not None
+        if self.parent_select_fields and self.relationship_property is None:
+            raise ValueError(
+                f"Connection field '{self.python_name}' uses parent_select="
+                f"{list(self.parent_select_fields)!r}, but only relationship-backed "
+                "connections can declare parent_select."
+            )
         selections = self.pagination.get_fields_from_typed_request(
             list(iter_selected_fields(info.selected_fields))
         )
@@ -108,8 +118,6 @@ class SQLAlchemyBaseConnectionField(StrawberrySQLAlchemyRelationField):
     @property
     def arguments(self) -> List[StrawberryArgument]:
         gql_arguments: List[StrawberryArgument] = []
-        # if self.filters:
-        #     gql_arguments.append(self.filters.argument)
         if self.pagination:
             if is_flat_pagination_policy(self.pagination):
                 gql_arguments.extend(self.pagination.arguments)

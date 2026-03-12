@@ -93,6 +93,7 @@ def test_builder_signatures_match_documented_surface() -> None:
 
     assert "where" in relationship_params
     assert "select" in relationship_params
+    assert "parent_select" in relationship_params
     assert "load" in relationship_params
     assert "sqlalchemy_name" not in relationship_params
     assert "pre_filter" not in relationship_params
@@ -101,6 +102,7 @@ def test_builder_signatures_match_documented_surface() -> None:
 
     assert "where" in connection_params
     assert "default_order_by" in connection_params
+    assert "parent_select" in connection_params
     assert "sqlalchemy_name" not in connection_params
 
 
@@ -129,3 +131,52 @@ def test_connection_accepts_where_and_default_order_by() -> None:
 
     assert field.where
     assert field.default_order_by == ("title",)
+
+
+def test_relationship_and_connection_parent_select_extend_parent_loading() -> None:
+    class ParentRelationship:
+        local_columns = [type("Column", (), {"name": "id"})()]
+
+    relationship_field = sc.relationship("books", parent_select=["name", "id"])
+    relationship_field.relationship_property = ParentRelationship()
+
+    connection_field = sc.connection(source="books", parent_select=["address", "id"])
+    connection_field.relationship_property = ParentRelationship()
+
+    assert relationship_field.needs_parent_fields == ["id", "name"]
+    assert connection_field.needs_parent_fields == ["id", "address"]
+
+
+def test_parent_select_does_not_inject_additional_resolver_kwargs() -> None:
+    class BookModel:
+        pass
+
+    @sc.relationship("books", parent_select=["name"])
+    def labels(
+        self,
+        books: list[BookModel],
+        name: str,
+    ):  # pragma: no cover - body is not reached
+        return [books, name]
+
+    with pytest.raises(TypeError, match="can only inject one relationship argument"):
+        labels.inject_resolver_kwargs(
+            source=type("Author", (), {"name": "Tolkien"})(),
+            kwargs={},
+            relationship_value=[],
+        )
+
+    @sc.connection(source="books", parent_select=["name"])
+    def paginated_labels(
+        self,
+        books: sc.Connection[BookModel],
+        name: str,
+    ):  # pragma: no cover - body is not reached
+        return [books, name]
+
+    with pytest.raises(TypeError, match="can only inject one relationship argument"):
+        paginated_labels.inject_resolver_kwargs(
+            source=type("Author", (), {"name": "Tolkien"})(),
+            kwargs={},
+            relationship_value=[],
+        )

@@ -1,5 +1,5 @@
 from enum import Enum
-from typing import List, Optional, Any
+from typing import Any, List, Optional
 
 import strawberry
 from sqlalchemy import Integer, String, ForeignKey, SmallInteger, select
@@ -34,6 +34,19 @@ class Person(Base):
 class PersonNode:
     name: str
     books: strawberry_chemist.Connection["BookNode"] = strawberry_chemist.connection()
+
+    @strawberry_chemist.connection(
+        source="books",
+        parent_select=["address"],
+        default_order_by=(Book.year.asc(),),
+    )
+    def books_for_address(
+        self,
+        books: strawberry_chemist.Connection[Book],
+    ) -> strawberry_chemist.Connection["BookNode"]:
+        if self.address:
+            return books
+        return books
 
 
 @strawberry_chemist.type(model=Book)
@@ -113,6 +126,9 @@ class Query:
 
     book_order_connection: strawberry_chemist.Connection["BookNode"] = (
         strawberry_chemist.connection(order=book_order)
+    )
+    invalid_parent_select_connection: strawberry_chemist.Connection["BookNode"] = (
+        strawberry_chemist.connection(parent_select=["name"])
     )
 
     @strawberry.field

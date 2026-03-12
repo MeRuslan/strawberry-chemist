@@ -20,6 +20,7 @@ class AuthorModel(Base):
 
     id: Mapped[int] = mapped_column(Integer, primary_key=True)
     name: Mapped[str] = mapped_column(String(200))
+    address: Mapped[str] = mapped_column(String(200))
     books: Mapped[list["BookModel"]] = relationship(back_populates="author")
 
 
@@ -50,9 +51,9 @@ async def prepare_database(engine: AsyncEngine) -> None:
 
 async def seed_data(session_factory: async_sessionmaker[AsyncSession]) -> None:
     async with session_factory() as session:
-        tolkien = AuthorModel(name="J.R.R. Tolkien")
-        le_guin = AuthorModel(name="Ursula K. Le Guin")
-        calvino = AuthorModel(name="Italo Calvino")
+        tolkien = AuthorModel(name="J.R.R. Tolkien", address="Baker Street 221B")
+        le_guin = AuthorModel(name="Ursula K. Le Guin", address="Tenar House")
+        calvino = AuthorModel(name="Italo Calvino", address="Invisible Avenue")
         session.add_all(
             [
                 tolkien,

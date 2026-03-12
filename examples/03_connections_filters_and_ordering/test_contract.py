@@ -45,6 +45,7 @@ async def execute_ok(env: ExampleEnv, query: str) -> dict[str, object]:
 def test_schema_exposes_filter_and_order_arguments() -> None:
     sdl = build_schema().as_str()
 
+    assert "authors(" in sdl
     assert "books(" in sdl
     assert "filter: BookFilter" in sdl
     assert "orderBy: [BookOrderItem!]" in sdl
@@ -161,6 +162,66 @@ async def test_connection_where_and_default_order_by_can_define_server_owned_ord
             "edges": [
                 {"node": {"title": "The Lord of the Rings", "ranking": 10}},
                 {"node": {"title": "The Hobbit", "ranking": 8}},
+            ]
+        }
+    }
+
+
+async def test_nested_connection_parent_select_supports_parent_aware_pagination(
+    env: ExampleEnv,
+) -> None:
+    data = await execute_ok(
+        env,
+        """
+        query {
+          authors(first: 10) {
+            edges {
+              node {
+                name
+                booksForAddress(first: 10) {
+                  edges {
+                    node {
+                      title
+                    }
+                  }
+                }
+              }
+            }
+          }
+        }
+        """,
+    )
+
+    assert data == {
+        "authors": {
+            "edges": [
+                {
+                    "node": {
+                        "name": "Italo Calvino",
+                        "booksForAddress": {
+                            "edges": [{"node": {"title": "Invisible Cities"}}]
+                        },
+                    }
+                },
+                {
+                    "node": {
+                        "name": "J.R.R. Tolkien",
+                        "booksForAddress": {
+                            "edges": [
+                                {"node": {"title": "The Hobbit"}},
+                                {"node": {"title": "The Lord of the Rings"}},
+                            ]
+                        },
+                    }
+                },
+                {
+                    "node": {
+                        "name": "Ursula K. Le Guin",
+                        "booksForAddress": {
+                            "edges": [{"node": {"title": "The Left Hand of Darkness"}}]
+                        },
+                    }
+                },
             ]
         }
     }

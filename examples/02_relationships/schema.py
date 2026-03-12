@@ -49,8 +49,15 @@ class Author:
     def book_titles(self, books: list[BookModel]) -> list[str]:
         return [book.title for book in books]
 
+    @sc.relationship("books", select=["title"], parent_select=["name"])
+    def labeled_books(self, books: list[BookModel]) -> list[str]:
+        return [f"{self.name}: {book.title}" for book in books]
+
     @sc.relationship("books", load="full")
-    def publication_labels(self, books: list[BookModel]) -> list[str]:
+    def publication_labels(
+        self,
+        books: list[BookModel],
+    ) -> list[str]:
         return [f"{book.title} ({book.year})" for book in books]
 
 

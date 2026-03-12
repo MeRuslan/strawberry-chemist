@@ -1,6 +1,6 @@
 from __future__ import annotations
 
-from typing import Optional
+from typing import Iterable, Optional
 
 from strawberry import UNSET
 
@@ -54,6 +54,7 @@ def connection(
     filter=None,
     order=None,
     default_order_by=None,
+    parent_select: Optional[Iterable[str]] = None,
     pagination=None,
     name=None,
     default=UNSET,
@@ -79,6 +80,7 @@ def connection(
         sqlalchemy_name=source,
         where=_normalize_where_clause(where),
         default_order_by=default_order_by,
+        parent_select=parent_select,
         pagination=pagination,
         filter=filter,
         order=order,

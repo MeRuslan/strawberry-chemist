@@ -106,6 +106,43 @@ async def test_load_nested_connection(authors_books, test_connection_client):
 
 
 @pytest.mark.asyncio
+async def test_nested_connection_parent_select_loads_parent_fields(
+    authors_books, test_connection_client
+):
+    query = """
+    {
+      peopleConnection(first: 10) {
+        edges {
+          node {
+            name
+            booksForAddress(first: 10) {
+              edges {
+                node {
+                  title
+                }
+              }
+            }
+          }
+        }
+      }
+    }
+    """
+    result = test_connection_client.post("/", json={"query": query}).json()
+
+    assert "errors" not in result
+    edges = result["data"]["peopleConnection"]["edges"]
+    tolkien_node = next(
+        edge["node"] for edge in edges if edge["node"]["name"] == tolkien.name
+    )
+    assert tolkien_node["booksForAddress"]["edges"] == [
+        {"node": {"title": "The Hobbit"}},
+        {"node": {"title": "The Lord of the Rings"}},
+        {"node": {"title": "The Silmarillion"}},
+        {"node": {"title": "Children of Hurin"}},
+    ]
+
+
+@pytest.mark.asyncio
 async def test_load_connection_with_filter(authors_books, test_connection_client):
     year = 1960
     query = (
@@ -227,3 +264,22 @@ async def test_load_nested_connection_empty(authors_books, test_connection_clien
     assert "errors" not in result
     assert result["data"]["personByName"]["name"] == yemets.name
     assert len(result["data"]["personByName"]["books"]["edges"]) == 0
+
+
+@pytest.mark.asyncio
+async def test_root_connection_parent_select_fails_clearly(
+    authors_books, test_connection_client
+):
+    query = """
+    {
+      invalidParentSelectConnection(first: 2) {
+        edges {
+          node {
+            title
+          }
+        }
+      }
+    }
+    """
+    with pytest.raises(ValueError, match="relationship-backed connections"):
+        test_connection_client.post("/", json={"query": query}).json()
