@@ -8,6 +8,12 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
 
 ### Added
 
+- Docs improvements
+
+## [0.3.0] - 2026-03-12
+
+### Added
+
 - Added `parent_select=` to `sc.relationship(...)` and `sc.connection(...)`
   for parent-aware relationship and nested connection transforms.
 

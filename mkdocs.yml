@@ -8,7 +8,6 @@ theme:
 nav:
   - Overview: index.md
   - Getting Started: getting-started.md
-  - API Surface: api-surface.md
   - Types And Fields: types-and-fields.md
   - Relationships: relationships.md
   - Connections And Pagination: connections-and-pagination.md
@@ -16,3 +15,4 @@ nav:
   - Nodes And Relay IDs: nodes-and-relay.md
   - Context And Extensions: context-and-extensions.md
   - Examples: examples.md
+  - API Surface: api-surface.md

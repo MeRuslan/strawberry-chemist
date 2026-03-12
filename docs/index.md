@@ -12,19 +12,39 @@ Explicit GraphQL types. Smart SQLAlchemy loading.
 - selection-aware dataloading
 
 `strawberry-chemist` is a Strawberry + SQLAlchemy integration for applications
-that want explicit GraphQL types instead of whole-schema autogeneration.
+that want explicit GraphQL types, and manual control where needed with full
+sqlalchemy ORM backing.
 
 That explicitness is intentional. You decide what your GraphQL DTOs look like,
 which fields exist, how relationships are exposed, and where client-controlled
 querying is allowed. The package focuses on reducing boilerplate around that
-work, not hiding it. That makes the public contract easier to reason about,
-easier to adapt over time, and easier to keep production-safe.
+work, bringing GQL schema and your code closer.That makes the public contract
+easier to reason about, easier to adapt over time, and easier to keep 
+production-safe.
 
-That does not come at the cost of naive loading. Chemist-managed relationship
-and connection fields are selection-aware and dataloader-backed, so explicit
-DTOs do not force per-parent N+1 behavior.
+And chemist-managed relationship and connections are selection-aware and
+dataloader-backed, so explicit DTOs do not force per-parent N+1 behavior,
+and only fetch what they need.
 
-## What It Looks Like
+## Simple example
+Simply define as if writing your GQL schema directly.
+
+```python
+import strawberry_chemist as sc
+
+@sc.type(model=AuthorModel)
+class Author:
+    name: str
+    books: list[Book]
+
+@sc.type(model=BookModel)
+class Book:
+    title: str
+    year: int
+    author: Author
+```
+
+## A bit closer to reality: filtering, computed fields, pagination on relations, etc.
 
 Server-scoped relationship-backed field:
 

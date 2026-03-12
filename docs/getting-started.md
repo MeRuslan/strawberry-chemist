@@ -3,26 +3,49 @@
 ## Installation
 
 ```bash
-pip install strawberry-chemist
+pip install strawberry-chemist uvicorn aiosqlite
 ```
 
 Supported Python versions: `3.11` through `3.14`.
 
 ## Context contract
 
-Chemist-managed fields expect your GraphQL context to provide an async
-`get_session()` context manager that yields a SQLAlchemy `AsyncSession`.
+In practice, your GraphQL context should provide an async `get_session()`
+context manager that yields a SQLAlchemy `AsyncSession`.
+
+Your own root resolvers will usually use it to load ORM rows, and
+Chemist-managed fields such as `sc.relationship(...)`, `sc.connection(...)`,
+and node lookup helpers use that same contract.
+
+At runtime, `sc.extensions()` also attaches request-local dataloaders and
+selection caches onto that same context object. That is usually invisible to
+application code, but it is still part of the execution contract.
 
 ## Minimal setup
 
+This is a single-file minimal app that serves a Chemist-backed GraphQL schema
+over ASGI and resolves `@sc.type(model=...)` instances from real SQLAlchemy
+queries:
+
 ```python
+from __future__ import annotations
+
+import asyncio
 from contextlib import asynccontextmanager
+from typing import Any
 
 import strawberry
 import strawberry_chemist as sc
-from sqlalchemy import Integer, String
-from sqlalchemy.ext.asyncio import AsyncSession, async_sessionmaker
+from sqlalchemy import Integer, String, select
+from sqlalchemy.ext.asyncio import (
+    AsyncSession,
+    async_sessionmaker,
+    create_async_engine,
+)
 from sqlalchemy.orm import DeclarativeBase, Mapped, mapped_column
+from strawberry.asgi import GraphQL
+
+DATABASE_URL = "sqlite+aiosqlite:///./app.db"
 
 
 class Base(DeclarativeBase):
@@ -35,6 +58,9 @@ class BookModel(Base):
     id: Mapped[int] = mapped_column(Integer, primary_key=True)
     title: Mapped[str] = mapped_column(String(200))
 
+engine = create_async_engine(DATABASE_URL)
+session_factory = async_sessionmaker(engine, expire_on_commit=False)
+
 
 class AppContext:
     def __init__(self, session_factory: async_sessionmaker[AsyncSession]):
@@ -46,64 +72,104 @@ class AppContext:
             yield session
 
 
-def build_context(
-    session_factory: async_sessionmaker[AsyncSession],
-    *,
-    request_id: str = "dev-request",
-    current_user_id: int | None = None,
-) -> AppContext:
-    del request_id, current_user_id
+def build_context(session_factory: async_sessionmaker[AsyncSession]) -> AppContext:
     return AppContext(session_factory)
 
 
-@sc.node(model=BookModel)
+@sc.type(model=BookModel)
 class Book:
     title: str
 
 
 @strawberry.type
 class Query:
-    books: sc.Connection[Book] = sc.connection()
+    @strawberry.field
+    async def books(
+        self,
+        info: strawberry.Info[AppContext, None],
+    ) -> list[Book]:
+        async with info.context.get_session() as session:
+            result = await session.scalars(
+                select(BookModel).order_by(BookModel.title.asc())
+            )
+            return list(result)
 
 
-schema = strawberry.Schema(query=Query, extensions=sc.extensions())
+def build_schema() -> strawberry.Schema:
+    return strawberry.Schema(query=Query, extensions=sc.extensions())
+
+
+class ChemistGraphQL(GraphQL):
+    def __init__(
+        self,
+        schema: strawberry.Schema,
+        *,
+        session_factory: async_sessionmaker[AsyncSession],
+    ) -> None:
+        super().__init__(schema)
+        self._session_factory = session_factory
+
+    async def get_context(self, request: Any, response: Any) -> AppContext:
+        del request, response
+        return build_context(self._session_factory)
+
+
+async def prepare_database() -> None:
+    async with engine.begin() as conn:
+        await conn.run_sync(Base.metadata.create_all)
+
+    async with session_factory() as session:
+        has_books = await session.scalar(select(BookModel.id).limit(1))
+        if has_books is None:
+            session.add(BookModel(title="The Hobbit"))
+            await session.commit()
+
+
+app = ChemistGraphQL(build_schema(), session_factory=session_factory)
+
+
+if __name__ == "__main__":
+    import uvicorn
+
+    asyncio.run(prepare_database())
+    uvicorn.run(app, host="127.0.0.1", port=8000)
 ```
 
-## Execution context
-
-Chemist does not create a GraphQL context for you. Your application passes one
-into Strawberry execution, and `sc.extensions()` augments that same object with
-request-local dataloaders and selection caches.
-
-```python
-result = await schema.execute(
-    query,
-    context_value=build_context(session_factory),
-)
-```
-
-## Local docs and examples
-
-Serve the docs locally:
+Run it:
 
 ```bash
-uv sync --group dev
-uv run mkdocs serve
+python app.py
 ```
 
-Run an example against the current checkout:
+Then open `http://127.0.0.1:8000` and run:
 
-```bash
-make example-test EXAMPLE=03_connections_filters_and_ordering
+```graphql
+query {
+  books {
+    title
+  }
+}
 ```
 
-Run the same example against the pinned published package instead:
+Expected result:
 
-```bash
-make example-test-published EXAMPLE=03_connections_filters_and_ordering
+```json
+{
+  "data": {
+    "books": [
+      {
+        "title": "The Hobbit"
+      }
+    ]
+  }
+}
 ```
 
-Or work directly inside the example directory:
+## Example projects
+
+The strawberry-chemist ships a dozen examples that serve as a public contract
+validation tests for the project. You can have a look at them, 
+or spin them up locally for references:
 
 ```bash
 cd examples/03_connections_filters_and_ordering
