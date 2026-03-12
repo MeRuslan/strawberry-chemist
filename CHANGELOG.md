@@ -4,6 +4,34 @@ All notable changes to this project will be documented in this file.
 
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
 
+## [0.3.0] - 2026-03-12
+
+### Added
+
+- Added `parent_select=` to `sc.relationship(...)` and `sc.connection(...)`
+  for parent-aware relationship and nested connection transforms.
+
+### Changed
+
+- Stabilized the `field` / `relationship` / `connection` surface around the
+  documented API and aligned examples, docs, and contract tests with the
+  supported runtime behavior.
+- Promoted `default_order_by=` and `connection(where=...)` as explicit
+  documented connection features, with updated example coverage.
+- Reworked connection decorated-resolver handling so loaded connection results
+  are injected without leaking pagination/filter/order kwargs into user
+  resolvers.
+- Completed practical mypy coverage for `src/strawberry_chemist` under the
+  current config and added mypy as a dedicated CI gate.
+- Refreshed the docs entrypoints and removed stale package documentation such
+  as `LIMITATIONS.md`.
+
+### Removed
+
+- Removed undocumented legacy factory knobs from the supported public surface,
+  including `post_processor`, `additional_parent_fields`, `pre_filter`,
+  `needs_fields`, and `ignore_field_selections`.
+
 ## [0.2.4] - 2026-03-11
 
 ### Changed
@@ -91,6 +119,8 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
 - Moved Postgres-only tests under the `psql` marker.
 
 [0.2.2]: https://github.com/MeRuslan/strawberry-chemist/releases/tag/0.2.2
+[0.3.0]: https://github.com/MeRuslan/strawberry-chemist/releases/tag/0.3.0
+[0.2.4]: https://github.com/MeRuslan/strawberry-chemist/releases/tag/0.2.4
 [0.2.3]: https://github.com/MeRuslan/strawberry-chemist/releases/tag/0.2.3
 [0.2.1]: https://github.com/MeRuslan/strawberry-chemist/releases/tag/0.2.1
 [0.2.0]: https://github.com/MeRuslan/strawberry-chemist/releases/tag/0.2.0

@@ -8,7 +8,7 @@ dependencies = [
     "pytest-asyncio>=1.1.0",
     "sqlalchemy>=2.0.41",
     "starlette>=0.47.3",
-    "strawberry-chemist==0.2.1",
+    "strawberry-chemist==0.3.0",
     "strawberry-graphql~=0.311.1",
     "uvicorn>=0.34.0",
 ]
