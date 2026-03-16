@@ -60,4 +60,5 @@ class Query:
 
 
 def build_schema() -> strawberry.Schema:
-    return strawberry.Schema(query=Query, extensions=sc.extensions())
+    schema = strawberry.Schema(query=Query, extensions=sc.extensions())
+    return sc.relay.configure(schema)

@@ -7,6 +7,7 @@ It covers:
 
 - `sc.node_lookup(...)` on a normal query field
 - `sc.node_lookup(...)` on a mutation-style field
+- `sc.relay.configure(schema)` for the unrestricted root `node(id: ...)` field
 - custom ID argument names such as `postId`
 - field permission classes before lookup
 - post-load node permission classes after lookup

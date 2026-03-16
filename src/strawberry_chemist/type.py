@@ -1,7 +1,7 @@
 import dataclasses
 import enum
 import warnings
-from typing import Any, Optional, Type, cast
+from typing import Any, Optional, Type
 
 import strawberry
 from sqlalchemy.engine import Row
@@ -13,13 +13,14 @@ from sqlalchemy.orm import (
 )
 from strawberry import auto
 from strawberry.annotation import StrawberryAnnotation
+from strawberry.types.base import get_object_definition
 from strawberry.types.field import StrawberryField
 from strawberry.types.object_type import _process_type, _wrap_dataclass
 
 from . import utils
 from .fields.field import StrawberrySQLAlchemyField, StrawberrySQLAlchemyRelationField
 from .fields.types import resolve_model_field_type, is_optional
-from .relay.public import build_node_id_field, register_node_type
+from .relay.public import Node, build_node_id_field, register_node_type
 
 WARN_ON_TYPE_MISMATCH: bool = True
 
@@ -347,6 +348,12 @@ def node(model, *args, ids=None, codec=None, name=None, **kwargs):
             codec=codec,
             node_name=name or processed.__strawberry_definition__.name,
         )
+        node_interface = get_object_definition(Node, strict=True)
+        if all(
+            interface.origin is not Node
+            for interface in processed.__strawberry_definition__.interfaces
+        ):
+            processed.__strawberry_definition__.interfaces.append(node_interface)
         return processed
 
     return wrapper

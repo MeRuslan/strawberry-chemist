@@ -108,4 +108,7 @@ class Mutation:
 
 
 def build_schema() -> strawberry.Schema:
-    return strawberry.Schema(query=Query, mutation=Mutation, extensions=sc.extensions())
+    schema = strawberry.Schema(
+        query=Query, mutation=Mutation, extensions=sc.extensions()
+    )
+    return sc.relay.configure(schema)

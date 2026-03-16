@@ -1,3 +1,4 @@
+import asyncio
 from typing import List
 
 import pytest
@@ -7,7 +8,13 @@ from sqlalchemy.orm import DeclarativeBase, Mapped, mapped_column
 from strawberry.utils.logging import StrawberryLogger
 
 import strawberry_chemist as sc
-from strawberry_chemist.relay.public import compose_node_id, get_node_definition
+from strawberry_chemist.relay.public import (
+    compose_node_id,
+    configure,
+    decode_node_id,
+    encode_node_id,
+    get_node_definition,
+)
 from tests.test_end_to_end.test_relay.schema import BookType, Base, Book
 
 
@@ -47,12 +54,12 @@ def test_node_field_is_explicit_new_public_api():
         id: Mapped[int] = mapped_column(Integer, primary_key=True)
 
     @sc.node(model=Dummy)
-    class DummyNode:
+    class ExplicitDummyNode:
         pass
 
     @strawberry.type
     class Query:
-        node = sc.node_field(allowed_types=(DummyNode,))
+        node = sc.node_field(allowed_types=(ExplicitDummyNode,))
 
     schema = strawberry.Schema(query=Query)
     field = schema.schema_converter.type_map["Query"].definition.fields[0]
@@ -60,6 +67,136 @@ def test_node_field_is_explicit_new_public_api():
     assert field.name == "node"
     assert field.arguments[0].python_name == "id"
     assert field.arguments[0].type_annotation.annotation is strawberry.ID
+
+
+def test_node_types_implement_node_interface_automatically():
+    class Base(DeclarativeBase):
+        pass
+
+    class Dummy(Base):
+        __tablename__ = "dummy_node"
+        id: Mapped[int] = mapped_column(Integer, primary_key=True)
+
+    @sc.node(model=Dummy)
+    class InterfaceDummyNode:
+        pass
+
+    @strawberry.type
+    class Query:
+        hello: str = "world"
+
+    schema = strawberry.Schema(query=Query)
+    configure(schema, node_types=(InterfaceDummyNode,))
+    sdl = schema.as_str()
+
+    assert "interface Node" in sdl
+    assert "type InterfaceDummyNode implements Node" in sdl
+    assert [
+        interface.name
+        for interface in InterfaceDummyNode.__strawberry_definition__.interfaces
+    ] == ["Node"]
+
+
+def test_unrestricted_node_field_uses_node_interface_and_picks_up_late_nodes():
+    class Base(DeclarativeBase):
+        pass
+
+    class BookModel(Base):
+        __tablename__ = "late_book"
+        id: Mapped[int] = mapped_column(Integer, primary_key=True)
+
+    class ShelfModel(Base):
+        __tablename__ = "late_shelf"
+        slug: Mapped[str] = mapped_column(primary_key=True)
+
+    @sc.node(model=BookModel)
+    class LateBookNode:
+        pass
+
+    @strawberry.type
+    class Query:
+        node = sc.node_field()
+
+    @sc.node(model=ShelfModel, ids=("slug",))
+    class LateShelfNode:
+        pass
+
+    schema = configure(strawberry.Schema(query=Query))
+    sdl = schema.as_str()
+
+    assert "node(id: ID!): Node" in sdl
+    assert "type LateBookNode implements Node" in sdl
+    assert "type LateShelfNode implements Node" in sdl
+
+
+def test_schema_default_codec_applies_to_ids_and_helper_api():
+    class Base(DeclarativeBase):
+        pass
+
+    class Dummy(Base):
+        __tablename__ = "dummy_codec"
+        id: Mapped[int] = mapped_column(Integer, primary_key=True)
+
+        def __init__(self, id: int):
+            self.id = id
+
+    codec = sc.relay.IntRegistryCodec(registry={Dummy: 7})
+
+    @sc.node(model=Dummy)
+    class CodecDummyNode:
+        pass
+
+    node = Dummy(3)
+
+    @strawberry.type
+    class Query:
+        @strawberry.field
+        def dummy(self) -> CodecDummyNode:
+            return node
+
+    schema = configure(strawberry.Schema(query=Query), default_codec=codec)
+
+    assert encode_node_id(schema, CodecDummyNode, source=node) == strawberry.ID("7:3")
+    assert encode_node_id(schema, CodecDummyNode, values=(3,)) == strawberry.ID("7:3")
+    assert decode_node_id(schema, "7:3").node_type is CodecDummyNode
+
+    result = asyncio.run(schema.execute("{ dummy { id } }"))
+    assert result.data == {"dummy": {"id": "7:3"}}
+    assert result.errors is None
+
+
+def test_decode_node_id_rejects_allowed_type_mismatch():
+    class Base(DeclarativeBase):
+        pass
+
+    class BookModel(Base):
+        __tablename__ = "decode_book"
+        id: Mapped[int] = mapped_column(Integer, primary_key=True)
+
+    class ShelfModel(Base):
+        __tablename__ = "decode_shelf"
+        slug: Mapped[str] = mapped_column(primary_key=True)
+
+    @sc.node(model=BookModel)
+    class DecodeBookNode:
+        pass
+
+    @sc.node(model=ShelfModel, ids=("slug",))
+    class DecodeShelfNode:
+        pass
+
+    @strawberry.type
+    class Query:
+        node = sc.node_field()
+
+    schema = configure(strawberry.Schema(query=Query))
+
+    with pytest.raises(ValueError, match="Unknown node token"):
+        decode_node_id(
+            schema,
+            "DecodeShelfNode_main",
+            allowed_types=(DecodeBookNode,),
+        )
 
 
 @pytest.mark.asyncio

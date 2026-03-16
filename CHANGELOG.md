@@ -4,6 +4,30 @@ All notable changes to this project will be documented in this file.
 
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
 
+## [0.4.0] - 2026-03-16
+
+### Added
+
+- Added schema-owned relay configuration via
+  `sc.relay.configure(schema, default_codec=...)` plus public
+  `sc.relay.encode_node_id(...)` and `sc.relay.decode_node_id(...)` helpers for
+  application code and tests.
+- Added relay contract coverage for automatic `Node` interface implementation,
+  unrestricted `node(id: ...)` setup, and schema-default codec behavior.
+
+### Changed
+
+- `@sc.node(...)` types now automatically implement the public `Node` interface
+  without requiring explicit inheritance from `sc.Node`.
+- Unrestricted `sc.node_field()` now exposes the `Node` interface and uses
+  schema configuration to register the concrete node types that belong to that
+  schema.
+- Relay ID encoding and decoding now resolve the default codec from the schema
+  at runtime instead of freezing it at decorator import time; per-node
+  `codec=` remains the explicit override path.
+- Updated relay docs and runnable examples to show the supported
+  `sc.relay.configure(schema)` setup path and schema-bound node ID helpers.
+
 ## [0.3.1] - 2026-03-12
 
 ### Added
@@ -124,6 +148,8 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
 - Made non-Postgres tests the default pytest selection.
 - Moved Postgres-only tests under the `psql` marker.
 
+[0.4.0]: https://github.com/MeRuslan/strawberry-chemist/releases/tag/0.4.0
+[0.3.1]: https://github.com/MeRuslan/strawberry-chemist/releases/tag/0.3.1
 [0.2.2]: https://github.com/MeRuslan/strawberry-chemist/releases/tag/0.2.2
 [0.3.0]: https://github.com/MeRuslan/strawberry-chemist/releases/tag/0.3.0
 [0.2.4]: https://github.com/MeRuslan/strawberry-chemist/releases/tag/0.2.4

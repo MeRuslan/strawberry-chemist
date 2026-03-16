@@ -1,4 +1,5 @@
 from strawberry_chemist.relay.public import (
+    DecodedNodeId,
     DEFAULT_ID_CODEC,
     IntRegistryCodec,
     Node,
@@ -7,8 +8,11 @@ from strawberry_chemist.relay.public import (
     RelayIdCodec,
     build_node_id_field,
     clear_node_registry,
+    configure,
     compose_node_id,
+    decode_node_id,
     decode_node_token,
+    encode_node_id,
     get_node_definition,
     iter_node_definitions,
     node_field,
@@ -19,6 +23,7 @@ from strawberry_chemist.relay.public import (
 
 
 __all__ = [
+    "DecodedNodeId",
     "DEFAULT_ID_CODEC",
     "IntRegistryCodec",
     "Node",
@@ -27,8 +32,11 @@ __all__ = [
     "RelayIdCodec",
     "build_node_id_field",
     "clear_node_registry",
+    "configure",
     "compose_node_id",
+    "decode_node_id",
     "decode_node_token",
+    "encode_node_id",
     "get_node_definition",
     "iter_node_definitions",
     "node_field",
