@@ -4,6 +4,31 @@ All notable changes to this project will be documented in this file.
 
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
 
+## [0.5.0] - 2026-03-17
+
+### Added
+
+- Added the public resolver-argument contract surface: `@sc.field(select={...})`
+  bindings, `source_param_name=` on relationship and connection resolvers, and
+  `select=` on `sc.connection(...)` for computed return-node data.
+- Added the `09_resolver_argument_contracts` runnable example and aligned the
+  public docs around the supported resolver injection rules.
+
+### Changed
+
+- Chemist resolver decorators now hide only Chemist-injected runtime params;
+  application-defined resolver params remain public GraphQL arguments.
+- Relationship and connection resolver injection now follows the effective
+  source parameter name instead of positional first-parameter behavior.
+- Connection field loading now ignores plain runtime-only GraphQL fields that do
+  not map to SQLAlchemy columns, which allows resolvers to annotate returned
+  node objects with computed fields.
+
+### Fixed
+
+- Fixed counted relationship-backed connections to compute `totalCount` from
+  the unpaginated result set instead of the current page slice.
+
 ## [0.4.0] - 2026-03-16
 
 ### Added
@@ -148,6 +173,7 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
 - Made non-Postgres tests the default pytest selection.
 - Moved Postgres-only tests under the `psql` marker.
 
+[0.5.0]: https://github.com/MeRuslan/strawberry-chemist/releases/tag/0.5.0
 [0.4.0]: https://github.com/MeRuslan/strawberry-chemist/releases/tag/0.4.0
 [0.3.1]: https://github.com/MeRuslan/strawberry-chemist/releases/tag/0.3.1
 [0.2.2]: https://github.com/MeRuslan/strawberry-chemist/releases/tag/0.2.2
