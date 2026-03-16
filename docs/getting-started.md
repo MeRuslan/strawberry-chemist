@@ -167,9 +167,8 @@ Expected result:
 
 ## Example projects
 
-The strawberry-chemist ships a dozen examples that serve as a public contract
-validation tests for the project. You can have a look at them, 
-or spin them up locally for references:
+The repository ships numbered examples that double as public contract tests.
+You can inspect them directly or spin one up locally for reference:
 
 ```bash
 cd examples/03_connections_filters_and_ordering

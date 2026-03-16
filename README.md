@@ -173,7 +173,7 @@ STRAWBERRY_CHEMIST_FIND_LINKS=/tmp/strawberry-chemist-dist \
 - Pagination: `sc.CursorPagination`, `sc.OffsetPagination`, `sc.PaginationPolicy`
 - Filters: `@sc.filter`, `sc.FilterSet`, `sc.filter_field`, `sc.manual_filter`
 - Ordering: `@sc.order`, `sc.order_field`, `sc.manual_order`
-- Relay: `sc.node_field()`, `sc.node_lookup(...)`
+- Relay: `@sc.node`, `sc.node_field()`, `sc.node_lookup(...)`, `sc.relay.configure(...)`
 - Schema integration: `sc.extensions()`
 
 Each part of the surface has a dedicated public docs page and at least one

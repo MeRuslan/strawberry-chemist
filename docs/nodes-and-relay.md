@@ -10,6 +10,9 @@ class Book:
     title: str
 ```
 
+Chemist automatically makes the type implement `sc.Node`, so an explicit
+`sc.Node` base class is optional.
+
 By default, Chemist infers the identifier columns from the SQLAlchemy mapper
 primary key.
 
@@ -61,6 +64,9 @@ schema = sc.relay.configure(
 ```
 
 Per-node `codec=` still overrides the schema default.
+
+Call `sc.relay.configure(schema, ...)` as the schema finalization step whenever
+you use an unrestricted `sc.node_field()` or want a schema-wide default codec.
 
 For application code and tests, use the schema-bound helpers instead of
 hardcoding token strings:

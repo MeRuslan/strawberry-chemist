@@ -53,6 +53,24 @@ def publication_labels(
     return [f"{book.title} ({book.year})" for book in books]
 ```
 
+The loaded relationship value is injected into the resolver parameter whose
+name matches the effective relationship source. It is a hidden runtime value,
+not a public GraphQL argument. Any other resolver params you declare stay
+public GraphQL arguments.
+
+By default, the hidden injected resolver parameter uses the relationship
+`source` name. If you want a different Python parameter name, set
+`source_param_name=` explicitly.
+
+```python
+@sc.relationship("books", source_param_name="loaded_books", load="full")
+def publication_labels(
+    self,
+    loaded_books: list[BookModel],
+) -> list[str]:
+    return [f"{book.title} ({book.year})" for book in loaded_books]
+```
+
 Use `parent_select=` when the computation also needs parent-row attributes that
 are not otherwise selected.
 

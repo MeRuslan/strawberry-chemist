@@ -34,6 +34,19 @@ class Book:
 
 That keeps the DTO explicit and keeps required model data visible at the field
 definition site.
+Selected resolver params are hidden from the GraphQL schema. Any other resolver
+params you declare stay public GraphQL arguments.
+
+If the resolver parameter names should differ from the selected model field
+paths, pass a mapping instead:
+
+```python
+@sc.type(model=BookModel)
+class Book:
+    @sc.field(select={"title": "book_title", "isbn": "book_isbn"})
+    def title_with_isbn(self, book_title: str, book_isbn: str) -> str:
+        return f"{book_title} ({book_isbn})"
+```
 
 ## Node types
 
@@ -44,6 +57,10 @@ Use `@sc.node(model=...)` when the type participates in relay/node resolution:
 class Book:
     title: str
 ```
+
+Chemist adds the `sc.Node` interface automatically. You do not need to inherit
+from `sc.Node` explicitly unless you want to make that relationship visible in
+Python code too.
 
 Primary example:
 

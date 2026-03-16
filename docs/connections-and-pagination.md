@@ -13,6 +13,7 @@ Connections are also intentionally flexible. The same API covers:
 - relationship-backed collections
 - server-scoped collections with `where=...`
 - server-owned default ordering with `default_order_by=...`
+- extra child-row loading for computed return-node data via `select=...`
 - parent-aware nested connections with `parent_select=...`
 - filter and order arguments
 - flat pagination arguments
@@ -46,7 +47,11 @@ Use `parent_select=` when a nested connection resolver needs parent-row fields
 in addition to the paginated related collection.
 
 ```python
-@sc.connection(source="books", parent_select=["name"])
+@sc.connection(
+    source="books",
+    source_param_name="loaded_connection",
+    parent_select=["name"],
+)
 def books_for_author(
     self,
     loaded_connection: sc.Connection[BookModel],
@@ -60,14 +65,49 @@ The injected resolver argument is a hidden runtime value, not a GraphQL input.
 For connections, that runtime value is the loaded connection wrapper whose nodes
 are still ORM rows.
 
+By default that hidden injected parameter uses the effective `source` name. Use
+`source_param_name=` when you want a different Python parameter name.
+
 As with relationships, the split is:
 
+- `select=` for extra fields on the child rows when the resolver computes
+  runtime-only return-node data
 - `parent_select=` for extra fields on the parent row
 - `where=`, `filter=`, `order=`, `default_order_by=`, and `pagination=`
   for the child collection
 
 `parent_select=` only applies to relationship-backed connections. Root
 connections should not declare it.
+
+## Computed return-node data
+
+Use `select=` when the connection resolver needs child-row columns that clients
+may not request directly.
+
+```python
+@strawberry.type
+class BookPreview(Book):
+    title_matches_prefix: bool
+
+
+@sc.connection(
+    source="books",
+    select=["title"],
+    source_param_name="loaded_connection",
+)
+def books_matching(
+    self,
+    loaded_connection: sc.Connection[BookModel],
+    title_prefix: str,
+) -> sc.Connection[BookPreview]:
+    for edge in loaded_connection.edges:
+        edge.node.title_matches_prefix = edge.node.title.startswith(title_prefix)
+    return loaded_connection
+```
+
+That pattern is supported. Plain runtime-only GraphQL fields on the returned
+node type stay out of SQL column selection, while `select=` makes the source
+columns needed for the computation available.
 
 ## Scoped connection
 
@@ -137,3 +177,4 @@ Primary examples:
 
 - [`examples/03_connections_filters_and_ordering`](https://github.com/MeRuslan/strawberry-chemist/tree/main/examples/03_connections_filters_and_ordering)
 - [`examples/08_nested_pagination_arguments`](https://github.com/MeRuslan/strawberry-chemist/tree/main/examples/08_nested_pagination_arguments)
+- [`examples/09_resolver_argument_contracts`](https://github.com/MeRuslan/strawberry-chemist/tree/main/examples/09_resolver_argument_contracts)
