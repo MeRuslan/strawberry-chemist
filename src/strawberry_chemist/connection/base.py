@@ -129,6 +129,7 @@ class SQLAlchemyBaseConnectionField(StrawberrySQLAlchemyRelationField):
             gql_arguments.append(self.order.argument)
         if self.filter:
             gql_arguments.append(self.filter.argument)
+        gql_arguments.extend(super().arguments)
         return gql_arguments
 
     @arguments.setter

@@ -504,6 +504,18 @@ class ConnectionLoader(LoadViaParents):
             )
         return self.connection.pagination.paginate_result(list(result))
 
+    async def load_total_counts(
+        self, parents: List[Any], query: Select[Any]
+    ) -> List[int]:
+        model = self.connection.sqlalchemy_model
+        pk_fields = tuple(sqlalchemy.inspect(model).primary_key)
+        unpaginated_results = await self.load(
+            parents=parents,
+            fields_to_load=pk_fields,
+            children_query=query.order_by(None),
+        )
+        return [len(result) for result in unpaginated_results]
+
     async def load_root_connection(
         self, fields: Sequence[ColumnExpression], query: Select[Any]
     ) -> List[Any]:
@@ -544,6 +556,10 @@ class ConnectionLoader(LoadViaParents):
         if relationship_property is None:
             return await self.load_root_connection(fields=fields, query=query)
 
+        total_counts: List[int] | None = None
+        if isinstance(self.connection.pagination, CountedPaginationPolicy):
+            total_counts = await self.load_total_counts(parents, query=query)
+
         res_flat = await self.load(
             parents=parents, fields_to_load=fields, children_query=paginated_query
         )
@@ -551,7 +567,9 @@ class ConnectionLoader(LoadViaParents):
         for i in range(len(res_flat)):
             res_flat[i] = self.paginate_result(
                 res_flat[i],
-                total_count=len(res_flat[i]),
+                total_count=(
+                    total_counts[i] if total_counts is not None else len(res_flat[i])
+                ),
             )
 
         return res_flat
