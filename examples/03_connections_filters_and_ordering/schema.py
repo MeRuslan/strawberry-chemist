@@ -41,6 +41,7 @@ class Author:
 
     @sc.connection(
         source="books",
+        source_param_name="loaded_connection",
         parent_select=["address"],
         default_order_by=(BookModel.year.asc(),),
         pagination=sc.CursorPagination(max_limit=20),

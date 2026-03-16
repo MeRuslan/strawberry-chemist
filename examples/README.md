@@ -23,11 +23,12 @@ Their contracts are also exercised from the root package test suite in
 | `01_types_and_fields` | `@sc.type`, `sc.attr`, `@sc.field`, `sc.extensions()` |
 | `02_relationships` | `sc.relationship`, renamed relationship fields, `where=`, `load="full"` |
 | `03_connections_filters_and_ordering` | `sc.connection`, `sc.Connection`, `sc.OffsetConnection`, `@sc.filter`, `sc.filter_field`, `@sc.order`, `sc.order_field`, pagination policy objects |
-| `04_nodes_and_relay_ids` | `@sc.node`, `sc.node_field()`, default PK IDs, custom `ids=(...)`, composite IDs, optional codec |
+| `04_nodes_and_relay_ids` | `@sc.node`, `sc.node_field()`, `sc.relay.configure(...)`, schema-bound relay ID helpers, default PK IDs, custom `ids=(...)`, composite IDs, optional codec |
 | `05_context_and_extensions` | minimal context protocol, `sc.extensions()`, mixed Strawberry root resolvers with Chemist-managed fields |
 | `06_manual_filters_and_orders` | `sc.manual_filter`, `sc.manual_order`, preserving legacy `filter` / `order` GraphQL contracts while still using `sc.connection(...)` |
 | `07_node_lookup_and_permissions` | `sc.node_lookup`, custom ID argument names, injected ORM nodes, field permissions, post-load node permissions |
 | `08_nested_pagination_arguments` | `sc.PaginationPolicy`, built-in cursor/offset policies, nested `pagination:` input arguments for migration compatibility |
+| `09_resolver_argument_contracts` | public resolver-argument contract for `@sc.field`, mapped `select={source: param}`, `source_param_name=` on relationship and connection loaders, `@sc.connection(select=[...])`, runtime-only return-node fields, `@sc.node_lookup`, plus manual Strawberry fields on Chemist types |
 
 ## Usage shape
 
