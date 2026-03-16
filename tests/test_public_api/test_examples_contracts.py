@@ -5,6 +5,7 @@ import sys
 from pathlib import Path
 
 import pytest
+import strawberry_chemist as sc
 
 from strawberry_chemist.relay.public import clear_node_registry
 
@@ -562,6 +563,204 @@ async def test_public_nested_pagination_arguments_contract() -> None:
             ],
             "totalCount": 3,
         }
+    }
+
+    await engine.dispose()
+
+
+@pytest.mark.asyncio
+async def test_public_resolver_argument_contracts() -> None:
+    app = load_example_app("09_resolver_argument_contracts")
+    schema = app.build_schema()
+    sdl = schema.as_str()
+
+    assert "titledWith(prefix: String!): String!" in sdl
+    assert "catalogLabel(suffix: String!): String!" in sdl
+    assert "catalogLabel(title:" not in sdl
+    assert "catalogLabel(year:" not in sdl
+    assert "joinedTitles(separator: String!): String!" in sdl
+    assert "joinedTitles(books:" not in sdl
+    assert "booksMatching(" in sdl
+    assert "titlePrefix: String!" in sdl
+    assert "first: Int!" in sdl
+    assert "after: String" in sdl
+    assert "loadedConnection" not in sdl
+    assert "bookLabel(bookId: ID!, prefix: String!): String" in sdl
+    assert "bookLabel(book:" not in sdl
+    assert "plainSummary: String!" in sdl
+    assert "titleMatchesPrefix: Boolean!" in sdl
+    assert "manualBadge: String!" in sdl
+    assert "contractVersion: String!" in sdl
+
+    engine, session_factory = app.create_engine_and_sessionmaker()
+    await app.prepare_database(engine)
+    ids = await app.seed_data(session_factory)
+    book_id = sc.relay.encode_node_id(schema, app.Book, values=[ids["hobbit"]])
+
+    result = await schema.execute(
+        """
+        query ResolverContracts($bookId: ID!) {
+          contractVersion
+          books {
+            title
+            titledWith(prefix: "Read: ")
+            catalogLabel(suffix: ".")
+            plainSummary
+          }
+          authors {
+            name
+            joinedTitles(separator: " / ")
+            manualBadge
+            booksMatching(first: 10, titlePrefix: "The") {
+              edges {
+                node {
+                  title
+                  titleMatchesPrefix
+                }
+              }
+              pageInfo {
+                hasNextPage
+                hasPreviousPage
+              }
+            }
+          }
+          bookLabel(bookId: $bookId, prefix: "NODE: ")
+        }
+        """,
+        variable_values={"bookId": str(book_id)},
+        context_value=app.build_context(session_factory),
+    )
+
+    assert result.errors is None
+    assert result.data == {
+        "contractVersion": "resolver-args-v1",
+        "books": [
+            {
+                "title": "The Hobbit",
+                "titledWith": "Read: The Hobbit",
+                "catalogLabel": "The Hobbit (1937).",
+                "plainSummary": "The Hobbit [1937]",
+            },
+            {
+                "title": "The Lord of the Rings",
+                "titledWith": "Read: The Lord of the Rings",
+                "catalogLabel": "The Lord of the Rings (1954).",
+                "plainSummary": "The Lord of the Rings [1954]",
+            },
+            {
+                "title": "A Wizard of Earthsea",
+                "titledWith": "Read: A Wizard of Earthsea",
+                "catalogLabel": "A Wizard of Earthsea (1968).",
+                "plainSummary": "A Wizard of Earthsea [1968]",
+            },
+        ],
+        "authors": [
+            {
+                "name": "J.R.R. Tolkien",
+                "joinedTitles": "The Hobbit / The Lord of the Rings",
+                "manualBadge": "manual:United Kingdom",
+                "booksMatching": {
+                    "edges": [
+                        {
+                            "node": {
+                                "title": "The Hobbit",
+                                "titleMatchesPrefix": True,
+                            }
+                        },
+                        {
+                            "node": {
+                                "title": "The Lord of the Rings",
+                                "titleMatchesPrefix": True,
+                            }
+                        },
+                    ],
+                    "pageInfo": {
+                        "hasNextPage": False,
+                        "hasPreviousPage": False,
+                    },
+                },
+            },
+            {
+                "name": "Ursula K. Le Guin",
+                "joinedTitles": "A Wizard of Earthsea",
+                "manualBadge": "manual:United States",
+                "booksMatching": {
+                    "edges": [
+                        {
+                            "node": {
+                                "title": "A Wizard of Earthsea",
+                                "titleMatchesPrefix": False,
+                            }
+                        }
+                    ],
+                    "pageInfo": {
+                        "hasNextPage": False,
+                        "hasPreviousPage": False,
+                    },
+                },
+            },
+        ],
+        "bookLabel": "NODE: The Hobbit",
+    }
+
+    paginated_result = await schema.execute(
+        """
+        query {
+          authors {
+            name
+            booksMatching(first: 1, titlePrefix: "The") {
+              edges {
+                node {
+                  titleMatchesPrefix
+                }
+              }
+              pageInfo {
+                hasNextPage
+                hasPreviousPage
+              }
+            }
+          }
+        }
+        """,
+        context_value=app.build_context(session_factory),
+    )
+
+    assert paginated_result.errors is None
+    assert paginated_result.data == {
+        "authors": [
+            {
+                "name": "J.R.R. Tolkien",
+                "booksMatching": {
+                    "edges": [
+                        {
+                            "node": {
+                                "titleMatchesPrefix": True,
+                            }
+                        }
+                    ],
+                    "pageInfo": {
+                        "hasNextPage": True,
+                        "hasPreviousPage": False,
+                    },
+                },
+            },
+            {
+                "name": "Ursula K. Le Guin",
+                "booksMatching": {
+                    "edges": [
+                        {
+                            "node": {
+                                "titleMatchesPrefix": False,
+                            }
+                        }
+                    ],
+                    "pageInfo": {
+                        "hasNextPage": False,
+                        "hasPreviousPage": False,
+                    },
+                },
+            },
+        ]
     }
 
     await engine.dispose()

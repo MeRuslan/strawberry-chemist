@@ -94,7 +94,7 @@ async def test_load_nested_connection(authors_books, test_connection_client):
     result_people = result["data"]["peopleConnection"]["edges"]
     for res_person in result_people:
         # check those who have books
-        if not res_person["node"]["name"] in [p.name for p in [tolkien, grr_martin]]:
+        if res_person["node"]["name"] not in [p.name for p in [tolkien, grr_martin]]:
             continue
         else:
             orm_person = (
@@ -264,6 +264,27 @@ async def test_load_nested_connection_empty(authors_books, test_connection_clien
     assert "errors" not in result
     assert result["data"]["personByName"]["name"] == yemets.name
     assert len(result["data"]["personByName"]["books"]["edges"]) == 0
+
+
+@pytest.mark.asyncio
+async def test_nested_offset_connection_counts_before_pagination(
+    authors_books, test_connection_client
+):
+    query = (
+        '{ personByName(name: "%s") { '
+        "name booksPage(limit: 1, offset: 0) { items { title } totalCount } } }"
+        % tolkien.name
+    )
+    result = test_connection_client.post("/", json={"query": query}).json()
+
+    assert "errors" not in result
+    assert result["data"]["personByName"] == {
+        "name": tolkien.name,
+        "booksPage": {
+            "items": [{"title": "The Hobbit"}],
+            "totalCount": 4,
+        },
+    }
 
 
 @pytest.mark.asyncio

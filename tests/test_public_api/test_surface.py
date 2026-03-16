@@ -3,6 +3,8 @@ import inspect
 
 import pytest
 import strawberry
+from sqlalchemy import Integer, String
+from sqlalchemy.orm import DeclarativeBase, Mapped, mapped_column
 
 import strawberry_chemist as sc
 
@@ -95,6 +97,7 @@ def test_builder_signatures_match_documented_surface() -> None:
     assert "additional_parent_fields" not in field_params
 
     assert "where" in relationship_params
+    assert "source_param_name" in relationship_params
     assert "select" in relationship_params
     assert "parent_select" in relationship_params
     assert "load" in relationship_params
@@ -104,6 +107,8 @@ def test_builder_signatures_match_documented_surface() -> None:
     assert "ignore_field_selections" not in relationship_params
 
     assert "where" in connection_params
+    assert "source_param_name" in connection_params
+    assert "select" in connection_params
     assert "default_order_by" in connection_params
     assert "parent_select" in connection_params
     assert "sqlalchemy_name" not in connection_params
@@ -136,6 +141,12 @@ def test_connection_accepts_where_and_default_order_by() -> None:
     assert field.default_order_by == ("title",)
 
 
+def test_connection_select_extends_child_loading() -> None:
+    field = sc.connection(source="books", select=["title", "year"])
+
+    assert field.relationship_select == ("title", "year")
+
+
 def test_relationship_and_connection_parent_select_extend_parent_loading() -> None:
     class ParentRelationship:
         local_columns = [type("Column", (), {"name": "id"})()]
@@ -150,7 +161,55 @@ def test_relationship_and_connection_parent_select_extend_parent_loading() -> No
     assert connection_field.needs_parent_fields == ["id", "address"]
 
 
-def test_parent_select_does_not_inject_additional_resolver_kwargs() -> None:
+def test_field_select_hides_only_selected_resolver_params() -> None:
+    @sc.field(select=["title", "year"])
+    def catalog_label(
+        self,
+        title: str,
+        year: int,
+        suffix: str,
+    ):
+        return f"{title} ({year}) {suffix}"
+
+    assert [argument.python_name for argument in catalog_label.arguments] == ["suffix"]
+
+    kwargs = catalog_label.inject_resolver_kwargs(
+        source=type("Book", (), {"title": "The Hobbit", "year": 1937})(),
+        kwargs={"suffix": "!"},
+    )
+
+    assert kwargs == {
+        "title": "The Hobbit",
+        "year": 1937,
+        "suffix": "!",
+    }
+
+
+def test_field_select_can_map_source_fields_to_custom_param_names() -> None:
+    @sc.field(select={"title": "book_title", "year": "published_year"})
+    def catalog_label(
+        self,
+        book_title: str,
+        published_year: int,
+        suffix: str,
+    ):
+        return f"{book_title} ({published_year}) {suffix}"
+
+    assert [argument.python_name for argument in catalog_label.arguments] == ["suffix"]
+
+    kwargs = catalog_label.inject_resolver_kwargs(
+        source=type("Book", (), {"title": "The Hobbit", "year": 1937})(),
+        kwargs={"suffix": "!"},
+    )
+
+    assert kwargs == {
+        "book_title": "The Hobbit",
+        "published_year": 1937,
+        "suffix": "!",
+    }
+
+
+def test_relationship_and_connection_keep_custom_resolver_params_public() -> None:
     class BookModel:
         pass
 
@@ -158,28 +217,151 @@ def test_parent_select_does_not_inject_additional_resolver_kwargs() -> None:
     def labels(
         self,
         books: list[BookModel],
-        name: str,
+        separator: str,
     ):  # pragma: no cover - body is not reached
-        return [books, name]
+        return [book for book in books if separator]
 
-    with pytest.raises(TypeError, match="can only inject one relationship argument"):
-        labels.inject_resolver_kwargs(
-            source=type("Author", (), {"name": "Tolkien"})(),
-            kwargs={},
-            relationship_value=[],
-        )
+    assert [argument.python_name for argument in labels.arguments] == ["separator"]
+
+    relationship_kwargs = labels.inject_resolver_kwargs(
+        source=type("Author", (), {"name": "Tolkien"})(),
+        kwargs={"separator": " / "},
+        relationship_value=["The Hobbit"],
+    )
+
+    assert relationship_kwargs == {
+        "books": ["The Hobbit"],
+        "separator": " / ",
+    }
 
     @sc.connection(source="books", parent_select=["name"])
     def paginated_labels(
         self,
         books: sc.Connection[BookModel],
-        name: str,
+        prefix: str,
     ):  # pragma: no cover - body is not reached
-        return [books, name]
+        return books
 
-    with pytest.raises(TypeError, match="can only inject one relationship argument"):
-        paginated_labels.inject_resolver_kwargs(
-            source=type("Author", (), {"name": "Tolkien"})(),
-            kwargs={},
-            relationship_value=[],
-        )
+    assert [argument.python_name for argument in paginated_labels.arguments] == [
+        "first",
+        "after",
+        "prefix",
+    ]
+
+    connection = object()
+    connection_kwargs = paginated_labels.inject_resolver_kwargs(
+        source=type("Author", (), {"name": "Tolkien"})(),
+        kwargs={"prefix": "The"},
+        relationship_value=connection,
+    )
+
+    assert connection_kwargs == {
+        "books": connection,
+        "prefix": "The",
+    }
+
+
+def test_relationship_and_connection_can_customize_source_param_name() -> None:
+    class BookModel:
+        pass
+
+    @sc.relationship("books", source_param_name="loaded_books")
+    def labels(
+        self,
+        loaded_books: list[BookModel],
+        separator: str,
+    ):  # pragma: no cover - body is not reached
+        return [book for book in loaded_books if separator]
+
+    assert [argument.python_name for argument in labels.arguments] == ["separator"]
+    assert labels.inject_resolver_kwargs(
+        source=object(),
+        kwargs={"separator": " / "},
+        relationship_value=["The Hobbit"],
+    ) == {
+        "loaded_books": ["The Hobbit"],
+        "separator": " / ",
+    }
+
+    @sc.connection(source="books", source_param_name="loaded_connection")
+    def paginated_labels(
+        self,
+        loaded_connection: sc.Connection[BookModel],
+        prefix: str,
+    ):  # pragma: no cover - body is not reached
+        return loaded_connection
+
+    assert [argument.python_name for argument in paginated_labels.arguments] == [
+        "first",
+        "after",
+        "prefix",
+    ]
+    connection = object()
+    assert paginated_labels.inject_resolver_kwargs(
+        source=object(),
+        kwargs={"prefix": "The"},
+        relationship_value=connection,
+    ) == {
+        "loaded_connection": connection,
+        "prefix": "The",
+    }
+
+
+def test_relationship_and_connection_require_the_configured_source_param_name() -> None:
+    class BookModel:
+        pass
+
+    @sc.relationship("books")
+    def labels(
+        self,
+        loaded_books: list[BookModel],
+        separator: str,
+    ):  # pragma: no cover - body is not reached
+        return [book for book in loaded_books if separator]
+
+    with pytest.raises(TypeError, match="must declare a 'books' parameter"):
+        _ = labels.arguments
+
+    @sc.connection(source="books")
+    def paginated_labels(
+        self,
+        loaded_connection: sc.Connection[BookModel],
+        prefix: str,
+    ):  # pragma: no cover - body is not reached
+        return loaded_connection
+
+    with pytest.raises(TypeError, match="must declare a 'books' parameter"):
+        _ = paginated_labels.arguments
+
+
+def test_node_lookup_keeps_custom_resolver_params_public() -> None:
+    class Base(DeclarativeBase):
+        pass
+
+    class BookModel(Base):
+        __tablename__ = "books"
+
+        id: Mapped[int] = mapped_column(Integer, primary_key=True)
+        title: Mapped[str] = mapped_column(String(200))
+
+    @sc.node(model=BookModel)
+    class Book:
+        title: str
+
+    @strawberry.type
+    class Query:
+        @sc.node_lookup(model=BookModel, id_name="book_id", node_param_name="book")
+        def book_label(
+            self,
+            info: strawberry.Info,
+            book: BookModel | None,
+            prefix: str,
+        ) -> str | None:
+            del info, book, prefix
+            return None
+
+    schema = strawberry.Schema(query=Query, extensions=sc.extensions())
+    sdl = schema.as_str()
+
+    assert "bookLabel(bookId: ID!, prefix: String!): String" in sdl
+    assert " book:" not in sdl

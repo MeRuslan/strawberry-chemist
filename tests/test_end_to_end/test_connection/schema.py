@@ -34,6 +34,16 @@ class Person(Base):
 class PersonNode:
     name: str
     books: strawberry_chemist.Connection["BookNode"] = strawberry_chemist.connection()
+    books_page: strawberry_chemist.OffsetConnection["BookNode"] = (
+        strawberry_chemist.connection(
+            source="books",
+            default_order_by=(Book.year.asc(),),
+            pagination=strawberry_chemist.OffsetPagination(
+                default_limit=2,
+                max_limit=20,
+            ),
+        )
+    )
 
     @strawberry_chemist.connection(
         source="books",
