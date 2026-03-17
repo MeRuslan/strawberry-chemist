@@ -1,23 +1,36 @@
 from __future__ import annotations
 
 from copy import deepcopy
-from typing import Any
+from typing import TYPE_CHECKING, Any, Final, TypeAlias, cast
+
+from strawberry_chemist.pagination.base import (
+    FlatPaginationPolicy,
+    NestedPaginationPolicy,
+)
+
+if TYPE_CHECKING:
+    from strawberry_chemist.relay.definitions import RelayIdCodec
+
+
+PaginationDefault: TypeAlias = (
+    FlatPaginationPolicy[Any, Any, Any] | NestedPaginationPolicy[Any, Any, Any]
+)
 
 
 class _UnsetType:
     pass
 
 
-UNSET = _UnsetType()
+UNSET: Final = _UnsetType()
 
-_default_pagination: Any = UNSET
-_default_relay_id_codec: Any = UNSET
+_default_pagination: PaginationDefault | _UnsetType = UNSET
+_default_relay_id_codec: RelayIdCodec | _UnsetType = UNSET
 
 
 def configure(
     *,
-    default_pagination: Any = UNSET,
-    default_relay_id_codec: Any = UNSET,
+    default_pagination: PaginationDefault | _UnsetType = UNSET,
+    default_relay_id_codec: RelayIdCodec | _UnsetType = UNSET,
 ) -> None:
     global _default_pagination, _default_relay_id_codec
 
@@ -34,17 +47,19 @@ def reset_config() -> None:
     _default_relay_id_codec = UNSET
 
 
-def get_default_pagination() -> Any:
-    if _default_pagination is UNSET:
+def get_default_pagination() -> PaginationDefault:
+    pagination = _default_pagination
+    if pagination is UNSET:
         from strawberry_chemist.pagination import CursorPagination
 
         return CursorPagination()
-    return deepcopy(_default_pagination)
+    return deepcopy(cast(PaginationDefault, pagination))
 
 
-def get_default_relay_id_codec() -> Any:
-    if _default_relay_id_codec is UNSET:
+def get_default_relay_id_codec() -> RelayIdCodec:
+    codec = _default_relay_id_codec
+    if codec is UNSET:
         from strawberry_chemist.relay.codecs import DEFAULT_ID_CODEC
 
         return DEFAULT_ID_CODEC
-    return _default_relay_id_codec
+    return cast("RelayIdCodec", codec)
