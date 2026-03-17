@@ -7,7 +7,7 @@ from pathlib import Path
 import pytest
 import strawberry_chemist as sc
 
-from strawberry_chemist.relay.public import clear_node_registry
+from strawberry_chemist.relay import clear_node_registry
 
 
 ROOT = Path(__file__).resolve().parents[2]

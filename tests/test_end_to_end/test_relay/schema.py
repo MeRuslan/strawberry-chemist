@@ -8,7 +8,7 @@ from strawberry.types import Info
 
 import strawberry_chemist as sc
 from strawberry_chemist.gql_context import SQLAlchemyContext
-from strawberry_chemist.relay.public import resolve_node
+from strawberry_chemist.relay import resolve_node
 
 
 Base = declarative_base()

@@ -1,7 +1,7 @@
 import pytest
 from starlette.testclient import TestClient
 
-from strawberry_chemist.relay.public import get_node_definition, register_node_type
+from strawberry_chemist.relay import get_node_definition, register_node_type
 from tests.app import create_app
 from tests.test_end_to_end.test_relay.schema import Book, BookType, schema
 

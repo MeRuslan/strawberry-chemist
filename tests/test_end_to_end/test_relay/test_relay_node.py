@@ -8,7 +8,7 @@ from sqlalchemy.orm import DeclarativeBase, Mapped, mapped_column
 from strawberry.utils.logging import StrawberryLogger
 
 import strawberry_chemist as sc
-from strawberry_chemist.relay.public import (
+from strawberry_chemist.relay import (
     compose_node_id,
     configure,
     decode_node_id,

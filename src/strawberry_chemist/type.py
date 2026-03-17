@@ -20,7 +20,7 @@ from strawberry.types.object_type import _process_type, _wrap_dataclass
 from . import utils
 from .fields.field import StrawberrySQLAlchemyField, StrawberrySQLAlchemyRelationField
 from .fields.types import resolve_model_field_type, is_optional
-from .relay.public import Node, build_node_id_field, register_node_type
+from .relay import Node, build_node_id_field, register_node_type
 
 WARN_ON_TYPE_MISMATCH: bool = True
 
