@@ -147,6 +147,171 @@ async def test_public_relationships_contract() -> None:
 
 
 @pytest.mark.asyncio
+async def test_public_inheritance_and_relay_bootstrap_contract() -> None:
+    app = load_example_app("10_inheritance_and_relay_bootstrap")
+    unconfigured_sdl = app.build_unconfigured_schema().as_str()
+    schema = app.build_schema()
+    sdl = schema.as_str()
+
+    assert "type DetachedTranslationPreview" in unconfigured_sdl
+    assert "type DetachedTranslationPreview" in sdl
+    assert "isbnValue: String!" in sdl
+    assert "label: String!" in sdl
+    assert "directIsbn: String!" in sdl
+    assert "mixinLabel" not in sdl
+    assert "mixinTranslationLocales" not in sdl
+    assert "type BookNode implements Node" in sdl
+    assert "translations: [Translation!]!" in sdl
+    assert "interface TranslationPreview" in unconfigured_sdl
+    assert "type DetachedTranslationPreview" in unconfigured_sdl
+    assert "preview: TranslationPreview!" in unconfigured_sdl
+    assert "interface TranslationPreview" in sdl
+    assert "preview: TranslationPreview!" in sdl
+
+    engine, session_factory = app.create_engine_and_sessionmaker()
+    await app.prepare_database(engine)
+    ids = await app.seed_data(session_factory)
+
+    preview_result = await app.build_unconfigured_schema().execute(
+        """
+        query {
+          preview {
+            __typename
+            locale
+            ... on DetachedTranslationPreview {
+              title
+            }
+          }
+        }
+        """,
+        context_value=app.build_context(session_factory),
+    )
+
+    assert preview_result.errors is None
+    assert preview_result.data == {
+        "preview": {
+            "__typename": "DetachedTranslationPreview",
+            "locale": "fr",
+            "title": "Bilbo le Hobbit",
+        }
+    }
+
+    result = await schema.execute(
+        """
+        query InheritanceAndBootstrap {
+          books {
+            title
+            year
+            isbnValue
+            label
+          }
+          mixedInBooks {
+            title
+            year
+            directIsbn
+          }
+        }
+        """,
+        context_value=app.build_context(session_factory),
+    )
+
+    assert result.errors is None
+    assert result.data == {
+        "books": [
+            {
+                "title": "The Hobbit",
+                "year": 1937,
+                "isbnValue": "9780261103344",
+                "label": "The Hobbit (9780261103344)",
+            },
+            {
+                "title": "A Wizard of Earthsea",
+                "year": 1968,
+                "isbnValue": "9780547773742",
+                "label": "A Wizard of Earthsea (9780547773742)",
+            },
+        ],
+        "mixedInBooks": [
+            {
+                "title": "The Hobbit",
+                "year": 1937,
+                "directIsbn": "9780261103344",
+            },
+            {
+                "title": "A Wizard of Earthsea",
+                "year": 1968,
+                "directIsbn": "9780547773742",
+            },
+        ],
+    }
+
+    preview_result = await schema.execute(
+        """
+        query ConfiguredPreview {
+          preview {
+            __typename
+            locale
+            ... on DetachedTranslationPreview {
+              title
+            }
+          }
+        }
+        """,
+        context_value=app.build_context(session_factory),
+    )
+
+    assert preview_result.errors is None
+    assert preview_result.data == {
+        "preview": {
+            "__typename": "DetachedTranslationPreview",
+            "locale": "fr",
+            "title": "Bilbo le Hobbit",
+        }
+    }
+
+    node_result = await schema.execute(
+        """
+        query InheritanceAndBootstrapNode($bookId: ID!) {
+          book(id: $bookId) {
+            __typename
+            ... on BookNode {
+              id
+              title
+              year
+              isbnValue
+              label
+              translations {
+                locale
+                title
+              }
+            }
+          }
+        }
+        """,
+        variable_values={"bookId": f"BookNode_{ids['hobbit']}"},
+        context_value=app.build_context(session_factory),
+    )
+
+    assert node_result.errors is None
+    assert node_result.data == {
+        "book": {
+            "__typename": "BookNode",
+            "id": f"BookNode_{ids['hobbit']}",
+            "title": "The Hobbit",
+            "year": 1937,
+            "isbnValue": "9780261103344",
+            "label": "The Hobbit (9780261103344)",
+            "translations": [
+                {"locale": "fr", "title": "Bilbo le Hobbit"},
+                {"locale": "es", "title": "El Hobbit"},
+            ],
+        },
+    }
+
+    await engine.dispose()
+
+
+@pytest.mark.asyncio
 async def test_public_connections_filters_and_ordering_contract() -> None:
     app = load_example_app("03_connections_filters_and_ordering")
     engine, session_factory = app.create_engine_and_sessionmaker()

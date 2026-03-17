@@ -165,6 +165,61 @@ def test_schema_default_codec_applies_to_ids_and_helper_api():
     assert result.errors is None
 
 
+def test_configure_preserves_explicit_non_node_types() -> None:
+    class Base(DeclarativeBase):
+        pass
+
+    class Dummy(Base):
+        __tablename__ = "dummy_preserved_node"
+        id: Mapped[int] = mapped_column(Integer, primary_key=True)
+
+    class PreviewModel(Base):
+        __tablename__ = "dummy_preserved_preview"
+        id: Mapped[int] = mapped_column(Integer, primary_key=True)
+        locale: Mapped[str] = mapped_column()
+        title: Mapped[str] = mapped_column()
+
+    @strawberry.interface
+    class Preview:
+        locale: str
+
+    @sc.type(model=PreviewModel)
+    class DetachedPreview(Preview):
+        locale: str
+        title: str
+
+    @sc.node(model=Dummy)
+    class PreserveDummyNode:
+        pass
+
+    @strawberry.type
+    class Query:
+        node = sc.node_field(allowed_types=(PreserveDummyNode,))
+
+        @strawberry.field
+        def preview(self) -> Preview:
+            return DetachedPreview(locale="fr", title="Bilbo")
+
+    schema = configure(
+        strawberry.Schema(query=Query, types=(DetachedPreview,)),
+        node_types=(PreserveDummyNode,),
+    )
+    sdl = schema.as_str()
+
+    assert "type DetachedPreview implements Preview" in sdl
+    result = schema.execute_sync(
+        "{ preview { __typename locale ... on DetachedPreview { title } } }"
+    )
+    assert result.errors is None
+    assert result.data == {
+        "preview": {
+            "__typename": "DetachedPreview",
+            "locale": "fr",
+            "title": "Bilbo",
+        }
+    }
+
+
 def test_decode_node_id_rejects_allowed_type_mismatch():
     class Base(DeclarativeBase):
         pass

@@ -29,6 +29,7 @@ Their contracts are also exercised from the root package test suite in
 | `07_node_lookup_and_permissions` | `sc.node_lookup`, custom ID argument names, injected ORM nodes, field permissions, post-load node permissions |
 | `08_nested_pagination_arguments` | `sc.PaginationPolicy`, built-in cursor/offset policies, nested `pagination:` input arguments for migration compatibility |
 | `09_resolver_argument_contracts` | public resolver-argument contract for `@sc.field`, mapped `select={source: param}`, `source_param_name=` on relationship and connection loaders, `@sc.connection(select=[...])`, runtime-only return-node fields, `@sc.node_lookup`, plus manual Strawberry fields on Chemist types |
+| `10_inheritance_and_relay_bootstrap` | subclassed Chemist base types, plain mixin caveats for inherited `@sc.field` / `@sc.relationship`, complex node inheritance, and preserving explicit non-node `types=(...)` entries across `sc.relay.configure(...)` |
 
 ## Usage shape
 
