@@ -6,6 +6,7 @@ It covers:
 
 - explicit `sc.Node` subclasses on normal `@sc.type(model=...)` types
 - `sc.node_id(...)` for custom IDs or codecs
+- `sc.configure(...)` before `strawberry.Schema(...)` for package-level defaults
 - schema-time `types=(...)` for unrestricted root `node(id: ...)` reachability
 - default identifier inference from model primary keys
 - custom identifiers for natural keys

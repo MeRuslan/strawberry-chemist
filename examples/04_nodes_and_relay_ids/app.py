@@ -13,7 +13,17 @@ if str(EXAMPLE_ROOT) not in sys.path:
     sys.path.insert(0, str(EXAMPLE_ROOT))
 
 from db import create_engine_and_sessionmaker, prepare_database, seed_data
-from schema import AppContext, LEGACY_CODEC, build_context, build_schema
+from schema import (
+    AppContext,
+    Book,
+    DEFAULT_CODEC,
+    LEGACY_CODEC,
+    LegacyBookmark,
+    Membership,
+    Shelf,
+    build_context,
+    build_schema,
+)
 
 
 class ExampleGraphQL(GraphQL):

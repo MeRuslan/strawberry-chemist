@@ -32,6 +32,11 @@ Composite IDs are supported.
 class Query:
     node = sc.node_field()
 
+sc.configure(
+    default_pagination=sc.CursorPagination(default_limit=10, max_limit=20),
+    default_relay_id_codec=sc.relay.IntRegistryCodec(registry={BookModel: 1}),
+)
+
 schema = strawberry.Schema(
     query=Query,
     types=(Book, Bookmark),
@@ -46,6 +51,9 @@ When an unrestricted `sc.node_field()` is present, the concrete node types must
 already be visible to the schema at build time, either through normal field
 reachability or through `types=(...)`.
 
+Call `sc.configure(...)` before `strawberry.Schema(...)` when an application
+wants package-level defaults such as relay codecs or connection pagination.
+
 ## Node ID codecs
 
 The default IDs are readable, for example `Book_1`.
@@ -59,6 +67,16 @@ class LegacyBookmark(sc.Node):
     id = sc.node_id(
         codec=sc.relay.IntRegistryCodec(registry={LegacyBookmarkModel: 7}),
     )
+```
+
+Or set a package-level default before building the schema:
+
+```python
+sc.configure(
+    default_relay_id_codec=sc.relay.IntRegistryCodec(
+        registry={BookModel: 1, ShelfModel: 2},
+    )
+)
 ```
 
 For application code and tests, use the schema-bound helpers instead of

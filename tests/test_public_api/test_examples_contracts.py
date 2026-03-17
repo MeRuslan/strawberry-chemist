@@ -405,7 +405,7 @@ async def test_public_nodes_and_relay_ids_contract() -> None:
     await app.prepare_database(engine)
     await app.seed_data(session_factory)
     schema = app.build_schema()
-    legacy_id = app.LEGACY_CODEC.encode("LegacyBookmark", ("5",))
+    legacy_id = sc.relay.encode_node_id(schema, app.LegacyBookmark, values=(5,))
 
     result = await schema.execute(
         """
@@ -437,9 +437,13 @@ async def test_public_nodes_and_relay_ids_contract() -> None:
         }
         """,
         variable_values={
-            "bookId": "Book_1",
-            "shelfId": "Shelf_favorites",
-            "membershipId": "Membership_10,20",
+            "bookId": sc.relay.encode_node_id(schema, app.Book, values=(1,)),
+            "shelfId": sc.relay.encode_node_id(
+                schema, app.Shelf, values=("favorites",)
+            ),
+            "membershipId": sc.relay.encode_node_id(
+                schema, app.Membership, values=(10, 20)
+            ),
             "legacyId": legacy_id,
         },
         context_value=app.build_context(session_factory),

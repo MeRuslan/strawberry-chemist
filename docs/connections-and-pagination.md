@@ -146,6 +146,18 @@ Built-in policies:
 
 They both implement `sc.PaginationPolicy`.
 
+If an application wants one package-level default policy, configure it before
+building the Strawberry schema:
+
+```python
+sc.configure(
+    default_pagination=sc.CursorPagination(default_limit=10, max_limit=20),
+)
+```
+
+Then `sc.connection()` fields without an explicit `pagination=` value inherit
+that policy. Explicit `pagination=` on a field still wins.
+
 Flat argument style:
 
 ```python

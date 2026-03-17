@@ -23,7 +23,7 @@ Their contracts are also exercised from the root package test suite in
 | `01_types_and_fields` | `@sc.type`, `sc.attr`, `@sc.field`, `sc.extensions()` |
 | `02_relationships` | `sc.relationship`, renamed relationship fields, `where=`, `load="full"` |
 | `03_connections_filters_and_ordering` | `sc.connection`, `sc.Connection`, `sc.OffsetConnection`, `@sc.filter`, `sc.filter_field`, `@sc.order`, `sc.order_field`, pagination policy objects |
-| `04_nodes_and_relay_ids` | `sc.Node`, `sc.node_id(...)`, `sc.node_field()`, schema-bound relay ID helpers, default PK IDs, custom IDs, composite IDs, optional codec |
+| `04_nodes_and_relay_ids` | `sc.Node`, `sc.node_id(...)`, `sc.node_field()`, `sc.configure(...)`, schema-bound relay ID helpers, default PK IDs, custom IDs, composite IDs, optional codec |
 | `05_context_and_extensions` | minimal context protocol, `sc.extensions()`, mixed Strawberry root resolvers with Chemist-managed fields |
 | `06_manual_filters_and_orders` | `sc.manual_filter`, `sc.manual_order`, preserving legacy `filter` / `order` GraphQL contracts while still using `sc.connection(...)` |
 | `07_node_lookup_and_permissions` | `sc.node_lookup`, custom ID argument names, injected ORM nodes, field permissions, post-load node permissions |

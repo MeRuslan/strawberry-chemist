@@ -20,21 +20,39 @@ from strawberry_chemist.pagination.base import (
     is_flat_pagination_policy,
     is_nested_pagination_policy,
 )
+from strawberry_chemist.settings import get_default_pagination
 
 PaginationPolicyUnion = FlatPaginationPolicy | NestedPaginationPolicy
 
 
 class SQLAlchemyBaseConnectionField(StrawberrySQLAlchemyRelationField):
-    pagination: PaginationPolicyUnion
+    _explicit_pagination: PaginationPolicyUnion | None
+    _resolved_pagination: PaginationPolicyUnion | None
     order: Optional[OrderDefinition] = None
     filter: Optional[FilterDefinition] = None
 
     def __init__(self, order=None, filter=None, default_order_by=None, **kwargs):
+        self._explicit_pagination = None
+        self._resolved_pagination = None
         self.order = order
         self.filter = filter
         self.default_order_by = default_order_by
         self.relationship_property = None
         super().__init__(**kwargs)
+
+    @property
+    def pagination(self) -> PaginationPolicyUnion:
+        if self._resolved_pagination is None:
+            explicit = self._explicit_pagination
+            self._resolved_pagination = (
+                explicit if explicit is not None else get_default_pagination()
+            )
+        return self._resolved_pagination
+
+    @pagination.setter
+    def pagination(self, value: PaginationPolicyUnion | None) -> None:
+        self._explicit_pagination = value
+        self._resolved_pagination = value
 
     @cached_property
     def sqlalchemy_model(self) -> DeclarativeMeta:

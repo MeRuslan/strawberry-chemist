@@ -165,6 +165,47 @@ def test_node_id_codec_applies_to_ids_and_helper_api():
     assert result.errors is None
 
 
+def test_global_default_relay_codec_applies_before_schema_build():
+    class Base(DeclarativeBase):
+        pass
+
+    class Dummy(Base):
+        __tablename__ = "dummy_global_codec"
+        id: Mapped[int] = mapped_column(Integer, primary_key=True)
+
+        def __init__(self, id: int):
+            self.id = id
+
+    codec = sc.relay.IntRegistryCodec(registry={Dummy: 9})
+
+    @sc.type(model=Dummy)
+    class GlobalCodecDummyNode(sc.Node):
+        pass
+
+    node = Dummy(4)
+
+    @strawberry.type
+    class Query:
+        @strawberry.field
+        def dummy(self) -> GlobalCodecDummyNode:
+            return node
+
+    sc.configure(default_relay_id_codec=codec)
+    schema = strawberry.Schema(query=Query)
+
+    assert encode_node_id(schema, GlobalCodecDummyNode, source=node) == strawberry.ID(
+        "9:4"
+    )
+    assert encode_node_id(schema, GlobalCodecDummyNode, values=(4,)) == strawberry.ID(
+        "9:4"
+    )
+    assert decode_node_id(schema, "9:4").node_type is GlobalCodecDummyNode
+
+    result = asyncio.run(schema.execute("{ dummy { id } }"))
+    assert result.data == {"dummy": {"id": "9:4"}}
+    assert result.errors is None
+
+
 def test_schema_types_preserve_explicit_non_node_types() -> None:
     class Base(DeclarativeBase):
         pass

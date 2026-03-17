@@ -13,8 +13,10 @@ def test_top_level_exports_match_public_surface() -> None:
     assert hasattr(sc, "FilterContext")
     assert hasattr(sc, "OrderContext")
     assert hasattr(sc, "PaginationPolicy")
+    assert hasattr(sc, "configure")
     assert hasattr(sc, "node_id")
     assert hasattr(sc, "node_lookup")
+    assert hasattr(sc, "reset_config")
     assert hasattr(sc.relay, "encode_node_id")
     assert hasattr(sc.relay, "decode_node_id")
     assert hasattr(sc.relay, "node_id")
@@ -81,6 +83,26 @@ def test_cursor_pagination_can_expose_nested_argument_shape() -> None:
             pagination=sc.CursorPagination(nested=True)
         )
 
+    schema = strawberry.Schema(query=Query, extensions=sc.extensions())
+    sdl = schema.as_str()
+
+    assert "books(pagination: CursorPaginationInput)" in sdl
+    assert "books(first:" not in sdl
+
+
+def test_global_default_pagination_applies_before_schema_build() -> None:
+    class BookModel:
+        pass
+
+    @sc.type(model=BookModel)
+    class Book:
+        title: str
+
+    @strawberry.type
+    class Query:
+        books: sc.Connection[Book] = sc.connection()
+
+    sc.configure(default_pagination=sc.CursorPagination(nested=True, default_limit=7))
     schema = strawberry.Schema(query=Query, extensions=sc.extensions())
     sdl = schema.as_str()
 

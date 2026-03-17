@@ -5,6 +5,8 @@ from typing import Any, Optional, Protocol, Sequence
 
 import strawberry
 
+from strawberry_chemist.settings import get_default_relay_id_codec
+
 
 class RelayIdCodec(Protocol):
     def encode(self, node_name: str, values: tuple[str, ...]) -> str: ...
@@ -45,7 +47,15 @@ class NodeDefinition:
     model: type[Any]
     node_name: str
     ids: tuple[str, ...]
-    codec: RelayIdCodec
+    explicit_codec: Optional[RelayIdCodec] = None
+
+    @property
+    def codec(self) -> RelayIdCodec:
+        codec = self.explicit_codec or get_default_relay_id_codec()
+        register = getattr(codec, "register", None)
+        if callable(register):
+            register(model=self.model, node_name=self.node_name)
+        return codec
 
 
 @dataclass(frozen=True)

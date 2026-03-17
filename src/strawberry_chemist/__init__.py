@@ -3,6 +3,7 @@ import strawberry
 if not hasattr(strawberry, "Info"):
     setattr(strawberry, "Info", strawberry.types.Info)
 
+from .settings import configure, reset_config
 from .type import input, mutation, type
 from .fields.field import RelationshipLoad, attr, field, relationship
 from .connection import connection
@@ -68,6 +69,7 @@ __all__ = [
     "PaginationPolicy",
     "CursorPagination",
     "OffsetPagination",
+    "configure",
     "Node",
     "node_field",
     "node_lookup",
@@ -79,4 +81,5 @@ __all__ = [
     "input",
     "mutation",
     "node_id",
+    "reset_config",
 ]

@@ -1,4 +1,5 @@
 import pytest
+import strawberry_chemist as sc
 
 from strawberry_chemist.gql_context import SQLAlchemyContext, context_var
 from tests.db_fixtures.sqlite_fixtures import (
@@ -35,6 +36,13 @@ except ModuleNotFoundError as exc:
     @pytest.fixture(scope="function")
     async def mock_psql_sqla_session():
         _skip_psql_fixture()
+
+
+@pytest.fixture(autouse=True)
+def reset_chemist_defaults():
+    sc.reset_config()
+    yield
+    sc.reset_config()
 
 
 @pytest.fixture

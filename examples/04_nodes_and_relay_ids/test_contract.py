@@ -5,9 +5,13 @@ from dataclasses import dataclass
 
 import pytest_asyncio
 import strawberry
+import strawberry_chemist as sc
 from app import (
     AppContext,
-    LEGACY_CODEC,
+    Book,
+    LegacyBookmark,
+    Membership,
+    Shelf,
     build_schema,
     build_context,
     create_engine_and_sessionmaker,
@@ -28,11 +32,12 @@ async def env() -> AsyncIterator[ExampleEnv]:
     engine, session_factory = create_engine_and_sessionmaker()
     await prepare_database(engine)
     await seed_data(session_factory)
+    schema = build_schema()
     try:
         yield ExampleEnv(
-            schema=build_schema(),
+            schema=schema,
             context=build_context(session_factory),
-            legacy_id=LEGACY_CODEC.encode("LegacyBookmark", ("5",)),
+            legacy_id=str(sc.relay.encode_node_id(schema, LegacyBookmark, values=(5,))),
         )
     finally:
         await engine.dispose()
@@ -59,6 +64,7 @@ def test_schema_exposes_root_node_fields() -> None:
 
     assert "node(id: ID!): " in sdl
     assert "book(id: ID!): Book" in sdl
+    assert "books(first: Int! = 10, after: String = null)" in sdl
 
 
 async def test_root_book_field_resolves_default_relay_ids(env: ExampleEnv) -> None:
@@ -74,7 +80,9 @@ async def test_root_book_field_resolves_default_relay_ids(env: ExampleEnv) -> No
           }
         }
         """,
-        variable_values={"bookId": "Book_1"},
+        variable_values={
+            "bookId": str(sc.relay.encode_node_id(env.schema, Book, values=(1,)))
+        },
     )
 
     assert data == {
@@ -102,8 +110,12 @@ async def test_node_field_resolves_custom_and_composite_ids(env: ExampleEnv) -> 
         }
         """,
         variable_values={
-            "shelfId": "Shelf_favorites",
-            "membershipId": "Membership_10,20",
+            "shelfId": str(
+                sc.relay.encode_node_id(env.schema, Shelf, values=("favorites",))
+            ),
+            "membershipId": str(
+                sc.relay.encode_node_id(env.schema, Membership, values=(10, 20))
+            ),
         },
     )
 

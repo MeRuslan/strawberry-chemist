@@ -6,7 +6,6 @@ from strawberry import UNSET
 
 from strawberry_chemist.connection.base import SQLAlchemyBaseConnectionField
 from strawberry_chemist.fields.field import _reject_legacy_kwargs
-from strawberry_chemist.pagination import CursorPagination
 
 
 def _normalize_where_clause(where):
@@ -38,13 +37,13 @@ class SQLAlchemyConnectionField(SQLAlchemyBaseConnectionField):
         default_order_by=None,
         **kwargs,
     ):
-        self.pagination = pagination or CursorPagination()
         super().__init__(
             order=_resolve_order(order),
             filter=_resolve_filter(filter),
             default_order_by=default_order_by,
             **kwargs,
         )
+        self.pagination = pagination
 
 
 def connection(

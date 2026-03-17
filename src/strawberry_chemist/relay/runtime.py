@@ -13,7 +13,6 @@ from strawberry.types import Info
 from strawberry_chemist import utils
 from strawberry_chemist.fields.field import field
 
-from .codecs import DEFAULT_ID_CODEC
 from .definitions import (
     DecodedNodeId,
     Node,
@@ -45,15 +44,13 @@ def build_node_id_field(
     codec: Optional[RelayIdCodec] = None,
 ):
     resolved_ids = tuple(ids or infer_node_ids(model))
-    resolved_codec = codec or DEFAULT_ID_CODEC
     definition = NodeDefinition(
         graphql_type=object,
         model=model,
         node_name=node_name,
         ids=resolved_ids,
-        codec=resolved_codec,
+        explicit_codec=codec,
     )
-    _register_codec(definition)
 
     def resolve_node_id(root, info: Info) -> strawberry.ID:
         del info
@@ -386,16 +383,9 @@ def finalize_node_type(
         model=model,
         node_name=node_name,
         ids=tuple(config.ids or infer_node_ids(model)),
-        codec=config.codec or DEFAULT_ID_CODEC,
+        explicit_codec=config.codec,
     )
-    _register_codec(definition)
     setattr(graphql_type, "__chemist_node_definition__", definition)
-
-
-def _register_codec(definition: NodeDefinition) -> None:
-    register = getattr(definition.codec, "register", None)
-    if callable(register):
-        register(model=definition.model, node_name=definition.node_name)
 
 
 def prepare_node_type(
@@ -424,7 +414,7 @@ def prepare_node_type(
     elif inherited_definition is not None:
         node_config = NodeIdConfig(
             ids=inherited_definition.ids,
-            codec=inherited_definition.codec,
+            codec=inherited_definition.explicit_codec,
         )
     else:
         raise TypeError(

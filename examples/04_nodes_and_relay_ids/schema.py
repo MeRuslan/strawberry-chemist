@@ -30,6 +30,13 @@ def build_context(
 
 
 LEGACY_CODEC = sc.relay.IntRegistryCodec(registry={LegacyBookmarkModel: 7})
+DEFAULT_CODEC = sc.relay.IntRegistryCodec(
+    registry={
+        BookModel: 1,
+        ShelfModel: 2,
+        MembershipModel: 3,
+    }
+)
 
 
 @sc.type(model=BookModel)
@@ -62,6 +69,10 @@ class Query:
 
 
 def build_schema() -> strawberry.Schema:
+    sc.configure(
+        default_pagination=sc.CursorPagination(default_limit=10, max_limit=20),
+        default_relay_id_codec=DEFAULT_CODEC,
+    )
     return strawberry.Schema(
         query=Query,
         types=(Book, Shelf, Membership, LegacyBookmark),
