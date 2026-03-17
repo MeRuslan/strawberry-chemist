@@ -1,10 +1,11 @@
 import dataclasses
 import sys
+from typing import Any
 
 from sqlalchemy.orm import DeclarativeMeta
+from strawberry import UNSET
 from strawberry import auto
 from strawberry.annotation import StrawberryAnnotation
-from strawberry import UNSET
 
 from strawberry.types.base import StrawberryContainer
 from strawberry.types.field import StrawberryField
@@ -13,18 +14,31 @@ from strawberry_chemist.connection.base import SQLAlchemyBaseConnectionField
 from strawberry_chemist.fields.field import StrawberrySQLAlchemyField
 
 
-def get_type_attr(type_, field_name):
+def get_type_attr(type_: type[Any], field_name: str) -> Any:
     # should probably simply set to
     # attr = getattr(type_, "__dataclass_fields__", {}).get(field_name, UNSET)
-    attr = getattr(type_, field_name, UNSET)
-    if attr is UNSET:
-        attr = getattr(type_, "__dataclass_fields__", {}).get(field_name, UNSET)
-    return attr
+    attr = type_.__dict__.get(field_name, UNSET)
+    if attr is not UNSET:
+        return attr
+    if dataclasses.is_dataclass(type_):
+        attr = type_.__dataclass_fields__.get(field_name, UNSET)
+        if attr is not UNSET:
+            return attr
+    return getattr(type_, field_name, UNSET)
 
 
-def get_annotation_namespace(type_) -> dict:
+def get_annotation_namespace(type_: type[Any]) -> dict[str, Any]:
     module = sys.modules.get(type_.__module__)
-    return getattr(module, "__dict__", {})
+    if module is None:
+        return {}
+    return module.__dict__
+
+
+def get_class_annotations(type_: type[Any]) -> dict[str, Any]:
+    annotations = type_.__dict__.get("__annotations__")
+    if annotations is None:
+        return {}
+    return dict(annotations)
 
 
 def unwrap_type(type_):
@@ -52,7 +66,7 @@ def get_annotations(cls):
     namespace = get_annotation_namespace(cls)
     annotations = {}
     for c in reversed(cls.__mro__):
-        class_annotations = getattr(c, "__annotations__", None)
+        class_annotations = get_class_annotations(c)
         if class_annotations:
             annotations.update(
                 {

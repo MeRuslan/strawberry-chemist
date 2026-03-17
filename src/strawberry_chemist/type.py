@@ -1,7 +1,7 @@
 import dataclasses
 import enum
 import warnings
-from typing import Any, Optional, Type
+from typing import Any, Optional, Protocol, Type, runtime_checkable
 
 import strawberry
 from sqlalchemy.engine import Row
@@ -13,7 +13,6 @@ from sqlalchemy.orm import (
 )
 from strawberry import auto
 from strawberry.annotation import StrawberryAnnotation
-from strawberry.types.base import get_object_definition
 from strawberry.types.field import StrawberryField
 from strawberry.types.object_type import _process_type, _wrap_dataclass
 
@@ -22,10 +21,14 @@ from strawberry_chemist.relay.runtime import prepare_node_type
 from . import utils
 from .fields.field import StrawberrySQLAlchemyField, StrawberrySQLAlchemyRelationField
 from .fields.types import resolve_model_field_type, is_optional
-from .relay import Node, build_node_id_field, finalize_node_type
-from .relay.definitions import NodeIdConfig, get_attached_node_definition
+from .relay import finalize_node_type
 
 WARN_ON_TYPE_MISMATCH: bool = True
+
+
+@runtime_checkable
+class _HasFieldType(Protocol):
+    _field_type: Any
 
 
 @dataclasses.dataclass
@@ -127,16 +130,24 @@ def get_field(
             graphql_name=None,
             type_annotation=field_annotation,
         )
-        wrapped_field._field_type = getattr(initial_field, "_field_type", None)
+        if isinstance(initial_field, _HasFieldType):
+            wrapped_field._field_type = initial_field._field_type
         initial_field = wrapped_field
 
     # Every connection, custom relation, proper annotation will fall here
     #   since they are properly defined fields in schema.
-    sqla_name: str = getattr(initial_field, "sqlalchemy_name", None) or field_name
+    sqla_name = (
+        initial_field.sqlalchemy_name
+        if isinstance(initial_field, StrawberrySQLAlchemyField)
+        and initial_field.sqlalchemy_name
+        else field_name
+    )
     model_field = maybe_get_model_field(container_type, sqla_name)
+    field: StrawberrySQLAlchemyField
 
     if isinstance(initial_field, StrawberrySQLAlchemyRelationField):
         model_field = get_model_field(container_type, sqla_name)
+        assert isinstance(model_field.property, RelationshipProperty)
         if WARN_ON_TYPE_MISMATCH:
             warn_on_type_mismatch(
                 container_type, model_field, field_annotation, initial_field
@@ -210,7 +221,7 @@ def get_annotations(cls):
     namespace = utils.get_annotation_namespace(cls)
     annotations = {}
     for c in reversed(cls.__mro__):
-        class_annotations = getattr(c, "__annotations__", None)
+        class_annotations = utils.get_class_annotations(c)
         if class_annotations:
             annotations.update(
                 {
@@ -297,7 +308,7 @@ def process_type(cls, model, *args, **kwargs):
             annotation = StrawberryAnnotation(auto)
         cls_annotations[field_name] = annotation
         setattr(cls, field_name, field)
-        if field_name in getattr(cls, "__dataclass_fields__", {}):
+        if field_name in cls.__dataclass_fields__:
             cls.__dataclass_fields__[field_name] = field
 
     # override is_type_of classmethod to resolve sqlalchemy types in unions and interfaces

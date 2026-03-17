@@ -9,6 +9,7 @@ from typing import (
     Mapping,
     Optional,
     Sequence,
+    Self,
     TypeAlias,
 )
 
@@ -110,6 +111,7 @@ class StrawberrySQLAlchemyField(StrawberryField):
     select_fields: tuple[str, ...]
     select_bindings: tuple[tuple[str, str], ...]
     _field_type: Any
+    is_auto: bool
 
     def __init__(
         self,
@@ -124,6 +126,7 @@ class StrawberrySQLAlchemyField(StrawberryField):
         self.origin_container_type = None
         self.select_fields = select_fields
         self.select_bindings = select_bindings
+        self.is_auto = False
         super().__init__(graphql_name=graphql_name, python_name=python_name, **kwargs)
 
     @cached_property
@@ -161,26 +164,35 @@ class StrawberrySQLAlchemyField(StrawberryField):
         self._arguments = value
 
     @classmethod
-    def from_field(cls, field, sqlalchemy_type):
+    def from_field(
+        cls,
+        field: StrawberryField,
+        sqlalchemy_type: Any,
+    ) -> Self:
+        del sqlalchemy_type
         if isinstance(field, cls):
             return field
 
-        default = getattr(field, "default", getattr(field, "default", UNSET))
+        metadata = field if isinstance(field, StrawberrySQLAlchemyField) else None
         new_field = cls(
-            base_resolver=getattr(field, "base_resolver", None),
+            base_resolver=field.base_resolver,
             default_factory=field.default_factory,
-            default=default,
-            sqlalchemy_name=getattr(field, "sqlalchemy_name", field.name),
-            graphql_name=getattr(field, "graphql_name", None),
+            default=field.default,
+            sqlalchemy_name=(
+                metadata.sqlalchemy_name
+                if metadata is not None and metadata.sqlalchemy_name
+                else field.name
+            ),
+            graphql_name=field.graphql_name,
             python_name=field.name,
-            type_annotation=field.type_annotation
-            if hasattr(field, "type_annotation")
-            else StrawberryAnnotation(field.type),
-            select=getattr(field, "select_fields", None),
+            type_annotation=field.type_annotation or StrawberryAnnotation(field.type),
+            select=metadata.select_fields if metadata is not None else None,
         )
-        new_field.is_auto = getattr(field, "is_auto", False)
-        new_field.origin_container_type = getattr(field, "origin_container_type", None)
-        new_field._field_type = getattr(field, "_field_type", new_field._field_type)
+        if metadata is None:
+            return new_field
+        new_field.is_auto = metadata.is_auto
+        new_field.origin_container_type = metadata.origin_container_type
+        new_field._field_type = metadata._field_type
         return new_field
 
     @cached_property

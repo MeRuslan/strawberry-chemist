@@ -1,3 +1,4 @@
+import dataclasses
 import enum
 import re
 from abc import ABC, abstractmethod
@@ -27,10 +28,10 @@ def _graphql_enum_name(name: str) -> str:
 
 
 def _freeze_value(value: Any) -> Any:
-    if hasattr(value, "__dataclass_fields__"):
+    if dataclasses.is_dataclass(value):
         return tuple(
-            (field_name, _freeze_value(getattr(value, field_name)))
-            for field_name in value.__dataclass_fields__
+            (field.name, _freeze_value(getattr(value, field.name)))
+            for field in dataclasses.fields(value)
         )
     if isinstance(value, enum.Enum):
         return value.value

@@ -8,7 +8,9 @@ from typing import Annotated, Any, Optional, Sequence, Type
 import strawberry
 from sqlalchemy import and_, select
 from strawberry import BasePermission
+from strawberry.schema.types.concrete_type import ConcreteType
 from strawberry.types import Info
+from strawberry.types.base import StrawberryObjectDefinition
 
 from strawberry_chemist import utils
 from strawberry_chemist.fields.field import field
@@ -203,7 +205,7 @@ def node_lookup(
                     has_permission = await has_permission
                 if has_permission:
                     continue
-                raise PermissionError(getattr(permission, "message", None))
+                raise PermissionError(permission.message)
 
             result = resolver(**resolver_arguments)
             if pyinspect.isawaitable(result):
@@ -302,8 +304,12 @@ def iter_node_definitions(
     definitions: list[NodeDefinition] = []
     seen: set[type[Any]] = set()
     for concrete_type in schema.schema_converter.type_map.values():
-        definition = getattr(concrete_type, "definition", None)
-        origin = getattr(definition, "origin", None)
+        if not isinstance(concrete_type, ConcreteType):
+            continue
+        definition = concrete_type.definition
+        if not isinstance(definition, StrawberryObjectDefinition):
+            continue
+        origin = definition.origin
         if not isinstance(origin, type):
             continue
         if origin in seen:
@@ -422,7 +428,7 @@ def prepare_node_type(
             "id = sc.node_id(...)."
         )
 
-    annotations = dict(getattr(cls, "__annotations__", {}))
+    annotations = utils.get_class_annotations(cls)
     annotations["id"] = strawberry.ID
     cls.__annotations__ = annotations
     setattr(

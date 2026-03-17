@@ -1,11 +1,21 @@
 from __future__ import annotations
 
-from typing import Iterable, Optional
+from typing import Any, Iterable, Optional, Protocol, runtime_checkable
 
 from strawberry import UNSET
 
 from strawberry_chemist.connection.base import SQLAlchemyBaseConnectionField
 from strawberry_chemist.fields.field import _reject_legacy_kwargs
+
+
+@runtime_checkable
+class _HasFilterDefinition(Protocol):
+    __sc_filter_definition__: Any
+
+
+@runtime_checkable
+class _HasOrderDefinition(Protocol):
+    __sc_order_definition__: Any
 
 
 def _normalize_where_clause(where):
@@ -18,13 +28,17 @@ def _normalize_where_clause(where):
 def _resolve_filter(filter_definition):
     if filter_definition is None:
         return None
-    return getattr(filter_definition, "__sc_filter_definition__", filter_definition)
+    if isinstance(filter_definition, _HasFilterDefinition):
+        return filter_definition.__sc_filter_definition__
+    return filter_definition
 
 
 def _resolve_order(order_definition):
     if order_definition is None:
         return None
-    return getattr(order_definition, "__sc_order_definition__", order_definition)
+    if isinstance(order_definition, _HasOrderDefinition):
+        return order_definition.__sc_order_definition__
+    return order_definition
 
 
 class SQLAlchemyConnectionField(SQLAlchemyBaseConnectionField):
