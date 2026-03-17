@@ -82,8 +82,8 @@ class MixedInBook(PlainBookMixin):
     direct_isbn: str = sc.attr("isbn")
 
 
-@sc.node(model=BookModel)
-class CatalogNode:
+@sc.type(model=BookModel)
+class CatalogNode(sc.Node):
     title: str
     isbn_value: str = sc.attr("isbn")
     translations: list[Translation] = sc.relationship("translations")
@@ -93,7 +93,7 @@ class CatalogNode:
         return f"{title} ({isbn})"
 
 
-@sc.node(model=BookModel)
+@sc.type(model=BookModel)
 class BookNode(CatalogNode):
     year: int
 
@@ -147,5 +147,4 @@ def build_unconfigured_schema() -> strawberry.Schema:
 
 
 def build_schema() -> strawberry.Schema:
-    schema = build_unconfigured_schema()
-    return sc.relay.configure(schema, node_types=(BookNode,))
+    return build_unconfigured_schema()

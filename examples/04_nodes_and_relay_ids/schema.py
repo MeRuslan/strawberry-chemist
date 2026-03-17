@@ -32,23 +32,25 @@ def build_context(
 LEGACY_CODEC = sc.relay.IntRegistryCodec(registry={LegacyBookmarkModel: 7})
 
 
-@sc.node(model=BookModel)
-class Book:
+@sc.type(model=BookModel)
+class Book(sc.Node):
     title: str
 
 
-@sc.node(model=ShelfModel, ids=("slug",))
-class Shelf:
+@sc.type(model=ShelfModel)
+class Shelf(sc.Node):
+    id = sc.node_id(ids=("slug",))
     label: str
 
 
-@sc.node(model=MembershipModel)
-class Membership:
+@sc.type(model=MembershipModel)
+class Membership(sc.Node):
     role: str
 
 
-@sc.node(model=LegacyBookmarkModel, codec=LEGACY_CODEC)
-class LegacyBookmark:
+@sc.type(model=LegacyBookmarkModel)
+class LegacyBookmark(sc.Node):
+    id = sc.node_id(codec=LEGACY_CODEC)
     label: str
 
 
@@ -60,5 +62,8 @@ class Query:
 
 
 def build_schema() -> strawberry.Schema:
-    schema = strawberry.Schema(query=Query, extensions=sc.extensions())
-    return sc.relay.configure(schema)
+    return strawberry.Schema(
+        query=Query,
+        types=(Book, Shelf, Membership, LegacyBookmark),
+        extensions=sc.extensions(),
+    )

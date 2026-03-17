@@ -4,10 +4,11 @@ This example defines the relay ergonomics of the public API.
 
 It covers:
 
-- `@sc.node(model=...)` without an explicit `sc.Node` base class
-- `sc.relay.configure(schema)` for schema-owned node registration and default codecs
+- explicit `sc.Node` subclasses on normal `@sc.type(model=...)` types
+- `sc.node_id(...)` for custom IDs or codecs
+- schema-time `types=(...)` for unrestricted root `node(id: ...)` reachability
 - default identifier inference from model primary keys
-- custom `ids=(...)` for natural keys
+- custom identifiers for natural keys
 - composite identifiers
 - `sc.relay.encode_node_id(...)` and `sc.relay.decode_node_id(...)` for application code and tests
 - an optional compact codec for legacy or integration-sensitive environments

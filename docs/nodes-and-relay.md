@@ -1,17 +1,15 @@
 # Nodes And Relay IDs
 
-Use `@sc.node(model=...)` to register a GraphQL type as a relay/node type.
+Use a normal Chemist type plus an explicit `sc.Node` base when the GraphQL type
+participates in relay/node resolution.
 
 ## Basic node
 
 ```python
-@sc.node(model=BookModel)
-class Book:
+@sc.type(model=BookModel)
+class Book(sc.Node):
     title: str
 ```
-
-Chemist automatically makes the type implement `sc.Node`, so an explicit
-`sc.Node` base class is optional.
 
 By default, Chemist infers the identifier columns from the SQLAlchemy mapper
 primary key.
@@ -19,8 +17,9 @@ primary key.
 ## Custom identifiers
 
 ```python
-@sc.node(model=BookmarkModel, ids=("user_id", "book_id"))
-class Bookmark:
+@sc.type(model=BookmarkModel)
+class Bookmark(sc.Node):
+    id = sc.node_id(ids=("user_id", "book_id"))
     created_at: datetime
 ```
 
@@ -33,40 +32,34 @@ Composite IDs are supported.
 class Query:
     node = sc.node_field()
 
-schema = sc.relay.configure(
-    strawberry.Schema(query=Query, extensions=sc.extensions())
+schema = strawberry.Schema(
+    query=Query,
+    types=(Book, Bookmark),
+    extensions=sc.extensions(),
 )
 ```
 
 You can also narrow the field to specific node types with
 `sc.node_field(allowed_types=(Book,))`.
 
-When an unrestricted `sc.node_field()` is present, call
-`sc.relay.configure(schema)` after creating the Strawberry schema so the `Node`
-interface knows which concrete node types belong to that schema.
+When an unrestricted `sc.node_field()` is present, the concrete node types must
+already be visible to the schema at build time, either through normal field
+reachability or through `types=(...)`.
 
 ## Node ID codecs
 
 The default IDs are readable, for example `Book_1`.
 
-If an application needs a different token format, `@sc.node(...)` also supports
-an explicit codec.
-
-If many node types should share the same default codec, configure it on the
-schema:
+If an application needs a different token format, configure it on the node ID
+field:
 
 ```python
-schema = strawberry.Schema(query=Query, extensions=sc.extensions())
-schema = sc.relay.configure(
-    schema,
-    default_codec=sc.relay.IntRegistryCodec(registry={BookModel: 1}),
-)
+@sc.type(model=LegacyBookmarkModel)
+class LegacyBookmark(sc.Node):
+    id = sc.node_id(
+        codec=sc.relay.IntRegistryCodec(registry={LegacyBookmarkModel: 7}),
+    )
 ```
-
-Per-node `codec=` still overrides the schema default.
-
-Call `sc.relay.configure(schema, ...)` as the schema finalization step whenever
-you use an unrestricted `sc.node_field()` or want a schema-wide default codec.
 
 For application code and tests, use the schema-bound helpers instead of
 hardcoding token strings:

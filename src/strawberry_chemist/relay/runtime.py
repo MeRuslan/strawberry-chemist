@@ -3,13 +3,14 @@ from __future__ import annotations
 import inspect as pyinspect
 import operator
 from functools import reduce, wraps
-from typing import Annotated, Any, Optional, Sequence
+from typing import Annotated, Any, Optional, Sequence, Type
 
 import strawberry
 from sqlalchemy import and_, select
 from strawberry import BasePermission
 from strawberry.types import Info
 
+from strawberry_chemist import utils
 from strawberry_chemist.fields.field import field
 
 from .codecs import DEFAULT_ID_CODEC
@@ -17,14 +18,12 @@ from .definitions import (
     DecodedNodeId,
     Node,
     NodeDefinition,
+    NodeIdConfig,
     RelayIdCodec,
+    get_attached_node_definition,
 )
-from .registry import (
-    _resolve_definition_codec,
-    get_node_definition,
-    infer_node_ids,
-    iter_node_definitions,
-)
+from sqlalchemy import inspect as sa_inspect
+from sqlalchemy.orm import Mapper
 
 
 def compose_node_id(
@@ -33,9 +32,9 @@ def compose_node_id(
     *,
     schema: Optional[strawberry.Schema] = None,
 ) -> strawberry.ID:
+    del schema
     values = tuple(str(getattr(source, field_name)) for field_name in definition.ids)
-    codec = _resolve_definition_codec(definition, schema=schema)
-    return strawberry.ID(codec.encode(definition.node_name, values))
+    return strawberry.ID(definition.codec.encode(definition.node_name, values))
 
 
 def build_node_id_field(
@@ -46,17 +45,19 @@ def build_node_id_field(
     codec: Optional[RelayIdCodec] = None,
 ):
     resolved_ids = tuple(ids or infer_node_ids(model))
+    resolved_codec = codec or DEFAULT_ID_CODEC
     definition = NodeDefinition(
         graphql_type=object,
         model=model,
         node_name=node_name,
         ids=resolved_ids,
-        codec=codec or DEFAULT_ID_CODEC,
-        has_custom_codec=codec is not None,
+        codec=resolved_codec,
     )
+    _register_codec(definition)
 
     def resolve_node_id(root, info: Info) -> strawberry.ID:
-        return compose_node_id(root, definition, schema=info.schema)
+        del info
+        return compose_node_id(root, definition)
 
     return field(resolve_node_id, select=resolved_ids)
 
@@ -70,8 +71,7 @@ def decode_node_token(
     candidates = _candidate_definitions(schema=schema, allowed_types=allowed_types)
     for definition in candidates:
         try:
-            codec = _resolve_definition_codec(definition, schema=schema)
-            node_name, values = codec.decode(
+            node_name, values = definition.codec.decode(
                 token,
                 node_names=[definition.node_name],
             )
@@ -255,9 +255,11 @@ def encode_node_id(
             f"Node '{definition.node_name}' expects {len(definition.ids)} id values, "
             f"got {len(values)}"
         )
-    codec = _resolve_definition_codec(definition, schema=schema)
     return strawberry.ID(
-        codec.encode(definition.node_name, tuple(str(value) for value in values))
+        definition.codec.encode(
+            definition.node_name,
+            tuple(str(value) for value in values),
+        )
     )
 
 
@@ -277,6 +279,44 @@ def decode_node_id(
         node_name=definition.node_name,
         values=values,
     )
+
+
+def get_node_definition(
+    node_type: type[Any], *, schema: Optional[strawberry.Schema] = None
+) -> Optional[NodeDefinition]:
+    definition = get_attached_node_definition(node_type)
+    if definition is None:
+        return None
+    if schema is None:
+        return definition
+    if node_type in {
+        item.graphql_type for item in iter_node_definitions(schema=schema)
+    }:
+        return definition
+    return None
+
+
+def iter_node_definitions(
+    *, schema: Optional[strawberry.Schema] = None
+) -> tuple[NodeDefinition, ...]:
+    if schema is None:
+        return ()
+
+    definitions: list[NodeDefinition] = []
+    seen: set[type[Any]] = set()
+    for concrete_type in schema.schema_converter.type_map.values():
+        definition = getattr(concrete_type, "definition", None)
+        origin = getattr(definition, "origin", None)
+        if not isinstance(origin, type):
+            continue
+        if origin in seen:
+            continue
+        node_definition = get_attached_node_definition(origin)
+        if node_definition is None:
+            continue
+        seen.add(origin)
+        definitions.append(node_definition)
+    return tuple(definitions)
 
 
 def _candidate_definitions(
@@ -324,3 +364,85 @@ def _build_union_return_type(allowed_types: Sequence[type[Any]]) -> Any:
     )
     union_type = reduce(operator.or_, allowed_types[1:], allowed_types[0])
     return Optional[Annotated[union_type, strawberry.union(union_name)]]
+
+
+def infer_node_ids(model: type[Any]) -> tuple[str, ...]:
+    mapper: Mapper[Any] = sa_inspect(model)
+    ids = tuple(str(column.key) for column in mapper.primary_key)
+    if not ids:
+        raise ValueError(f"Model {model} has no primary key columns")
+    return ids
+
+
+def finalize_node_type(
+    graphql_type: type[Any],
+    *,
+    model: type[Any],
+    node_name: str,
+    config: NodeIdConfig,
+) -> None:
+    definition = NodeDefinition(
+        graphql_type=graphql_type,
+        model=model,
+        node_name=node_name,
+        ids=tuple(config.ids or infer_node_ids(model)),
+        codec=config.codec or DEFAULT_ID_CODEC,
+    )
+    _register_codec(definition)
+    setattr(graphql_type, "__chemist_node_definition__", definition)
+
+
+def _register_codec(definition: NodeDefinition) -> None:
+    register = getattr(definition.codec, "register", None)
+    if callable(register):
+        register(model=definition.model, node_name=definition.node_name)
+
+
+def prepare_node_type(
+    cls: Type[Any],
+    *,
+    model: Type[Any],
+    graphql_name: Optional[str] = None,
+) -> Optional[NodeIdConfig]:
+    if not issubclass(cls, Node):
+        return None
+
+    existing_id = utils.get_type_attr(cls, "id")
+    inherited_definition = next(
+        (
+            definition
+            for base in cls.__mro__[1:]
+            if (definition := get_attached_node_definition(base)) is not None
+        ),
+        None,
+    )
+    node_config: Optional[NodeIdConfig]
+    if isinstance(existing_id, NodeIdConfig):
+        node_config = existing_id
+    elif existing_id in {utils.UNSET, None} or utils.is_field(existing_id):
+        node_config = NodeIdConfig()
+    elif inherited_definition is not None:
+        node_config = NodeIdConfig(
+            ids=inherited_definition.ids,
+            codec=inherited_definition.codec,
+        )
+    else:
+        raise TypeError(
+            f"Relay Node type {cls.__name__} must use the default node id or define "
+            "id = sc.node_id(...)."
+        )
+
+    annotations = dict(getattr(cls, "__annotations__", {}))
+    annotations["id"] = strawberry.ID
+    cls.__annotations__ = annotations
+    setattr(
+        cls,
+        "id",
+        build_node_id_field(
+            model=model,
+            node_name=graphql_name or cls.__name__,
+            ids=node_config.ids,
+            codec=node_config.codec,
+        ),
+    )
+    return node_config

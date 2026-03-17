@@ -6,10 +6,6 @@ from dataclasses import dataclass
 import pytest_asyncio
 import strawberry
 import strawberry_chemist as sc
-from strawberry_chemist.relay import clear_node_registry
-
-
-clear_node_registry()
 
 from app import (  # noqa: E402
     Book,

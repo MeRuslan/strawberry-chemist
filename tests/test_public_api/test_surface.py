@@ -13,13 +13,15 @@ def test_top_level_exports_match_public_surface() -> None:
     assert hasattr(sc, "FilterContext")
     assert hasattr(sc, "OrderContext")
     assert hasattr(sc, "PaginationPolicy")
+    assert hasattr(sc, "node_id")
     assert hasattr(sc, "node_lookup")
-    assert hasattr(sc.relay, "configure")
     assert hasattr(sc.relay, "encode_node_id")
     assert hasattr(sc.relay, "decode_node_id")
+    assert hasattr(sc.relay, "node_id")
     assert not hasattr(sc, "relation_field")
     assert not hasattr(sc, "relay_connection_field")
     assert not hasattr(sc, "limit_offset_connection_field")
+    assert not hasattr(sc.relay, "configure")
     assert not hasattr(sc.relay, "NodeEdge")
     assert not hasattr(sc.relay, "object_field")
     assert not hasattr(sc.relay, "object_exists_field")
@@ -344,8 +346,8 @@ def test_node_lookup_keeps_custom_resolver_params_public() -> None:
         id: Mapped[int] = mapped_column(Integer, primary_key=True)
         title: Mapped[str] = mapped_column(String(200))
 
-    @sc.node(model=BookModel)
-    class Book:
+    @sc.type(model=BookModel)
+    class Book(sc.Node):
         title: str
 
     @strawberry.type

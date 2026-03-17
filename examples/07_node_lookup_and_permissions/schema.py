@@ -59,13 +59,13 @@ class IsPostAuthor(BasePermission):
         return source is not None and source.author_id == info.context.current_user_id
 
 
-@sc.node(model=UserModel)
-class User:
+@sc.type(model=UserModel)
+class User(sc.Node):
     username: str
 
 
-@sc.node(model=PostModel)
-class Post:
+@sc.type(model=PostModel)
+class Post(sc.Node):
     title: str
 
 
@@ -108,7 +108,9 @@ class Mutation:
 
 
 def build_schema() -> strawberry.Schema:
-    schema = strawberry.Schema(
-        query=Query, mutation=Mutation, extensions=sc.extensions()
+    return strawberry.Schema(
+        query=Query,
+        mutation=Mutation,
+        types=(User, Post),
+        extensions=sc.extensions(),
     )
-    return sc.relay.configure(schema)

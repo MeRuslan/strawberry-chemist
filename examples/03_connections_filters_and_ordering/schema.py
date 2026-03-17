@@ -28,8 +28,8 @@ def build_context(
     return AppContext(session_factory)
 
 
-@sc.node(model=BookModel)
-class Book:
+@sc.type(model=BookModel)
+class Book(sc.Node):
     title: str
     year: int
     ranking: int | None

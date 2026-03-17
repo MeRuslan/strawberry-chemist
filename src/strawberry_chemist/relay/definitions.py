@@ -6,11 +6,6 @@ from typing import Any, Optional, Protocol, Sequence
 import strawberry
 
 
-@strawberry.interface
-class Node:
-    id: strawberry.ID
-
-
 class RelayIdCodec(Protocol):
     def encode(self, node_name: str, values: tuple[str, ...]) -> str: ...
 
@@ -23,13 +18,34 @@ class RelayIdCodec(Protocol):
 
 
 @dataclass(frozen=True)
+class NodeIdConfig:
+    ids: Optional[tuple[str, ...]] = None
+    codec: Optional[RelayIdCodec] = None
+
+
+def node_id(
+    *,
+    ids: Optional[Sequence[str]] = None,
+    codec: Optional[RelayIdCodec] = None,
+) -> NodeIdConfig:
+    return NodeIdConfig(
+        ids=tuple(ids) if ids is not None else None,
+        codec=codec,
+    )
+
+
+@strawberry.interface
+class Node:
+    id: strawberry.ID
+
+
+@dataclass(frozen=True)
 class NodeDefinition:
     graphql_type: type[Any]
     model: type[Any]
     node_name: str
     ids: tuple[str, ...]
     codec: RelayIdCodec
-    has_custom_codec: bool = False
 
 
 @dataclass(frozen=True)
@@ -39,8 +55,8 @@ class DecodedNodeId:
     values: tuple[str, ...]
 
 
-@dataclass(frozen=True)
-class RelaySchemaState:
-    default_codec: RelayIdCodec
-    definitions_by_type: dict[type[Any], NodeDefinition]
-    definitions_by_name: dict[str, NodeDefinition]
+def get_attached_node_definition(node_type: type[Any]) -> Optional[NodeDefinition]:
+    definition = getattr(node_type, "__chemist_node_definition__", None)
+    if isinstance(definition, NodeDefinition):
+        return definition
+    return None

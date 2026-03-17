@@ -10,7 +10,6 @@ from strawberry.utils.logging import StrawberryLogger
 import strawberry_chemist as sc
 from strawberry_chemist.relay import (
     compose_node_id,
-    configure,
     decode_node_id,
     encode_node_id,
     get_node_definition,
@@ -53,8 +52,8 @@ def test_node_field_is_explicit_new_public_api():
         __tablename__ = "dummy"
         id: Mapped[int] = mapped_column(Integer, primary_key=True)
 
-    @sc.node(model=Dummy)
-    class ExplicitDummyNode:
+    @sc.type(model=Dummy)
+    class ExplicitDummyNode(sc.Node):
         pass
 
     @strawberry.type
@@ -77,16 +76,15 @@ def test_node_types_implement_node_interface_automatically():
         __tablename__ = "dummy_node"
         id: Mapped[int] = mapped_column(Integer, primary_key=True)
 
-    @sc.node(model=Dummy)
-    class InterfaceDummyNode:
+    @sc.type(model=Dummy)
+    class InterfaceDummyNode(sc.Node):
         pass
 
     @strawberry.type
     class Query:
         hello: str = "world"
 
-    schema = strawberry.Schema(query=Query)
-    configure(schema, node_types=(InterfaceDummyNode,))
+    schema = strawberry.Schema(query=Query, types=(InterfaceDummyNode,))
     sdl = schema.as_str()
 
     assert "interface Node" in sdl
@@ -97,7 +95,7 @@ def test_node_types_implement_node_interface_automatically():
     ] == ["Node"]
 
 
-def test_unrestricted_node_field_uses_node_interface_and_picks_up_late_nodes():
+def test_unrestricted_node_field_uses_node_interface_with_schema_visible_nodes():
     class Base(DeclarativeBase):
         pass
 
@@ -109,19 +107,20 @@ def test_unrestricted_node_field_uses_node_interface_and_picks_up_late_nodes():
         __tablename__ = "late_shelf"
         slug: Mapped[str] = mapped_column(primary_key=True)
 
-    @sc.node(model=BookModel)
-    class LateBookNode:
+    @sc.type(model=BookModel)
+    class LateBookNode(sc.Node):
         pass
 
     @strawberry.type
     class Query:
         node = sc.node_field()
 
-    @sc.node(model=ShelfModel, ids=("slug",))
-    class LateShelfNode:
+    @sc.type(model=ShelfModel)
+    class LateShelfNode(sc.Node):
+        id = sc.node_id(ids=("slug",))
         pass
 
-    schema = configure(strawberry.Schema(query=Query))
+    schema = strawberry.Schema(query=Query, types=(LateBookNode, LateShelfNode))
     sdl = schema.as_str()
 
     assert "node(id: ID!): Node" in sdl
@@ -129,7 +128,7 @@ def test_unrestricted_node_field_uses_node_interface_and_picks_up_late_nodes():
     assert "type LateShelfNode implements Node" in sdl
 
 
-def test_schema_default_codec_applies_to_ids_and_helper_api():
+def test_node_id_codec_applies_to_ids_and_helper_api():
     class Base(DeclarativeBase):
         pass
 
@@ -142,8 +141,9 @@ def test_schema_default_codec_applies_to_ids_and_helper_api():
 
     codec = sc.relay.IntRegistryCodec(registry={Dummy: 7})
 
-    @sc.node(model=Dummy)
-    class CodecDummyNode:
+    @sc.type(model=Dummy)
+    class CodecDummyNode(sc.Node):
+        id = sc.node_id(codec=codec)
         pass
 
     node = Dummy(3)
@@ -154,7 +154,7 @@ def test_schema_default_codec_applies_to_ids_and_helper_api():
         def dummy(self) -> CodecDummyNode:
             return node
 
-    schema = configure(strawberry.Schema(query=Query), default_codec=codec)
+    schema = strawberry.Schema(query=Query)
 
     assert encode_node_id(schema, CodecDummyNode, source=node) == strawberry.ID("7:3")
     assert encode_node_id(schema, CodecDummyNode, values=(3,)) == strawberry.ID("7:3")
@@ -165,7 +165,7 @@ def test_schema_default_codec_applies_to_ids_and_helper_api():
     assert result.errors is None
 
 
-def test_configure_preserves_explicit_non_node_types() -> None:
+def test_schema_types_preserve_explicit_non_node_types() -> None:
     class Base(DeclarativeBase):
         pass
 
@@ -188,8 +188,8 @@ def test_configure_preserves_explicit_non_node_types() -> None:
         locale: str
         title: str
 
-    @sc.node(model=Dummy)
-    class PreserveDummyNode:
+    @sc.type(model=Dummy)
+    class PreserveDummyNode(sc.Node):
         pass
 
     @strawberry.type
@@ -200,10 +200,7 @@ def test_configure_preserves_explicit_non_node_types() -> None:
         def preview(self) -> Preview:
             return DetachedPreview(locale="fr", title="Bilbo")
 
-    schema = configure(
-        strawberry.Schema(query=Query, types=(DetachedPreview,)),
-        node_types=(PreserveDummyNode,),
-    )
+    schema = strawberry.Schema(query=Query, types=(DetachedPreview,))
     sdl = schema.as_str()
 
     assert "type DetachedPreview implements Preview" in sdl
@@ -232,19 +229,20 @@ def test_decode_node_id_rejects_allowed_type_mismatch():
         __tablename__ = "decode_shelf"
         slug: Mapped[str] = mapped_column(primary_key=True)
 
-    @sc.node(model=BookModel)
-    class DecodeBookNode:
+    @sc.type(model=BookModel)
+    class DecodeBookNode(sc.Node):
         pass
 
-    @sc.node(model=ShelfModel, ids=("slug",))
-    class DecodeShelfNode:
+    @sc.type(model=ShelfModel)
+    class DecodeShelfNode(sc.Node):
+        id = sc.node_id(ids=("slug",))
         pass
 
     @strawberry.type
     class Query:
         node = sc.node_field()
 
-    schema = configure(strawberry.Schema(query=Query))
+    schema = strawberry.Schema(query=Query, types=(DecodeBookNode, DecodeShelfNode))
 
     with pytest.raises(ValueError, match="Unknown node token"):
         decode_node_id(

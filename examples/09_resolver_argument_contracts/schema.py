@@ -31,8 +31,8 @@ def build_context(
     return AppContext(session_factory)
 
 
-@sc.node(model=BookModel)
-class Book:
+@sc.type(model=BookModel)
+class Book(sc.Node):
     title: str
     year: int
 
@@ -137,5 +137,4 @@ class Query:
 
 
 def build_schema() -> strawberry.Schema:
-    schema = strawberry.Schema(query=Query, extensions=sc.extensions())
-    return sc.relay.configure(schema, node_types=(Book,))
+    return strawberry.Schema(query=Query, extensions=sc.extensions())

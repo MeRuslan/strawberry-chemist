@@ -3,7 +3,7 @@ import strawberry
 if not hasattr(strawberry, "Info"):
     setattr(strawberry, "Info", strawberry.types.Info)
 
-from .type import input, mutation, node, type
+from .type import input, mutation, type
 from .fields.field import RelationshipLoad, attr, field, relationship
 from .connection import connection
 from .extensions import extensions
@@ -37,7 +37,7 @@ from .pagination import (
     OffsetPagination,
     PaginationPolicy,
 )
-from .relay import Node, node_field, node_lookup
+from .relay import Node, node_field, node_id, node_lookup
 
 __all__ = [
     "connection",
@@ -76,7 +76,7 @@ __all__ = [
     # "mutations",
     # "django_resolver",
     "type",
-    "node",
     "input",
     "mutation",
+    "node_id",
 ]

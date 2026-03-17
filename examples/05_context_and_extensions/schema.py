@@ -35,8 +35,9 @@ def build_context(
     return AppContext(session_factory, request_id=request_id)
 
 
-@sc.node(model=BookModel, ids=("slug",))
-class Book:
+@sc.type(model=BookModel)
+class Book(sc.Node):
+    id = sc.node_id(ids=("slug",))
     title: str
 
     @sc.field(select=["title"])

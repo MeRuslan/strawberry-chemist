@@ -7,15 +7,12 @@ from pathlib import Path
 import pytest
 import strawberry_chemist as sc
 
-from strawberry_chemist.relay import clear_node_registry
-
 
 ROOT = Path(__file__).resolve().parents[2]
 EXAMPLES_ROOT = ROOT / "examples"
 
 
 def load_example_app(example_name: str):
-    clear_node_registry()
     module_name = f"tests._example_{example_name}"
     example_dir = EXAMPLES_ROOT / example_name
     module_path = example_dir / "app.py"

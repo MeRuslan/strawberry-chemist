@@ -17,10 +17,13 @@ from strawberry.types.base import get_object_definition
 from strawberry.types.field import StrawberryField
 from strawberry.types.object_type import _process_type, _wrap_dataclass
 
+from strawberry_chemist.relay.runtime import prepare_node_type
+
 from . import utils
 from .fields.field import StrawberrySQLAlchemyField, StrawberrySQLAlchemyRelationField
 from .fields.types import resolve_model_field_type, is_optional
-from .relay import Node, build_node_id_field, register_node_type
+from .relay import Node, build_node_id_field, finalize_node_type
+from .relay.definitions import NodeIdConfig, get_attached_node_definition
 
 WARN_ON_TYPE_MISMATCH: bool = True
 
@@ -311,49 +314,20 @@ def process_type(cls, model, *args, **kwargs):
 
 def type(model, *args, **kwargs):
     def wrapper(cls):
-        wrapped = _wrap_dataclass(cls)
-        return process_type(wrapped, model, **kwargs)
-
-    return wrapper
-
-
-def node(model, *args, ids=None, codec=None, name=None, **kwargs):
-    def wrapper(cls):
-        if "id" not in cls.__dict__:
-            annotations = dict(getattr(cls, "__annotations__", {}))
-            annotations.setdefault("id", strawberry.ID)
-            cls.__annotations__ = annotations
-            setattr(
-                cls,
-                "id",
-                build_node_id_field(
-                    model=model,
-                    node_name=name or cls.__name__,
-                    ids=ids,
-                    codec=codec,
-                ),
-            )
-
-        wrapped = _wrap_dataclass(cls)
-        processed = process_type(
-            wrapped,
-            model,
-            name=name,
-            **kwargs,
-        )
-        register_node_type(
-            processed,
+        node_config = prepare_node_type(
+            cls,
             model=model,
-            ids=ids,
-            codec=codec,
-            node_name=name or processed.__strawberry_definition__.name,
+            graphql_name=kwargs.get("name"),
         )
-        node_interface = get_object_definition(Node, strict=True)
-        if all(
-            interface.origin is not Node
-            for interface in processed.__strawberry_definition__.interfaces
-        ):
-            processed.__strawberry_definition__.interfaces.append(node_interface)
+        wrapped = _wrap_dataclass(cls)
+        processed = process_type(wrapped, model, **kwargs)
+        if node_config is not None:
+            finalize_node_type(
+                processed,
+                model=model,
+                node_name=processed.__strawberry_definition__.name,
+                config=node_config,
+            )
         return processed
 
     return wrapper

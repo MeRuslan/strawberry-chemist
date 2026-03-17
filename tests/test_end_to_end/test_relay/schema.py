@@ -20,8 +20,8 @@ class Book(Base):
     title: Mapped[str] = mapped_column(String)
 
 
-@sc.node(model=Book)
-class BookType:
+@sc.type(model=Book)
+class BookType(sc.Node):
     title: str
 
 

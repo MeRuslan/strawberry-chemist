@@ -50,17 +50,21 @@ class Book:
 
 ## Node types
 
-Use `@sc.node(model=...)` when the type participates in relay/node resolution:
+Use `sc.Node` when the type participates in relay/node resolution:
 
 ```python
-@sc.node(model=BookModel)
-class Book:
+@sc.type(model=BookModel)
+class Book(sc.Node):
     title: str
 ```
 
-Chemist adds the `sc.Node` interface automatically. You do not need to inherit
-from `sc.Node` explicitly unless you want to make that relationship visible in
-Python code too.
+Override the default primary-key relay ID only when needed:
+
+```python
+@sc.type(model=BookmarkModel)
+class Bookmark(sc.Node):
+    id = sc.node_id(ids=("user_id", "book_id"))
+```
 
 Primary example:
 
