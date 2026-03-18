@@ -4,6 +4,22 @@ All notable changes to this project will be documented in this file.
 
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
 
+## [0.6.0] - 2026-03-18
+
+### Added
+
+- Added `sc.settings` module for setting global pagination and relay id codec defaults 
+
+### Changed
+
+- Node API surface remodeled completely: you need to inherit from `sc.Node` explicitly.
+- Adapted node example projects like `04_nodes_and_relay_ids` and relay documentation.
+- Better mypy coverage and typing througout the repository.
+
+### Removed
+- `@sc.node(...)` type decorator, node interface implementations are declared using 
+`sc.Node`.
+
 ## [0.5.1] - 2026-03-18
 
 ### Fixed
