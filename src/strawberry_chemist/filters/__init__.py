@@ -4,7 +4,17 @@ import enum
 import re
 import types
 from abc import ABC, abstractmethod
-from typing import Any, Callable, Dict, Optional, Union, get_args, get_origin
+from typing import (
+    Any,
+    Callable,
+    Dict,
+    Optional,
+    TypeVar,
+    Union,
+    cast,
+    get_args,
+    get_origin,
+)
 
 import strawberry
 from sqlalchemy import and_, not_, or_
@@ -161,6 +171,7 @@ class DateTimeFilter:
 
 
 FilterContext = QueryBuildContext
+TFilterClass = TypeVar("TFilterClass", bound=type[Any])
 
 
 @dataclasses.dataclass
@@ -371,8 +382,12 @@ class PublicFilterDefinition(FilterDefinition):
         return query
 
 
-def filter(model, *, name: Optional[str] = None):
-    def wrapper(cls):
+def filter(
+    model: type[Any],
+    *,
+    name: Optional[str] = None,
+) -> Callable[[TFilterClass], TFilterClass]:
+    def wrapper(cls: TFilterClass) -> TFilterClass:
         annotations = dict(cls.__dict__.get("__annotations__", {}))
         field_definitions: Dict[str, FilterFieldDefinition] = {}
 
@@ -391,15 +406,15 @@ def filter(model, *, name: Optional[str] = None):
                 strawberry.field(default=None, name=definition.graphql_name),
             )
 
-        annotations.setdefault("and_", Optional[list[cls]])
-        annotations.setdefault("or_", Optional[list[cls]])
+        annotations.setdefault("and_", Optional[list[cls]])  # type: ignore[valid-type]
+        annotations.setdefault("or_", Optional[list[cls]])  # type: ignore[valid-type]
         annotations.setdefault("not_", Optional[cls])
         setattr(cls, "and_", strawberry.field(default=None, name="and"))
         setattr(cls, "or_", strawberry.field(default=None, name="or"))
         setattr(cls, "not_", strawberry.field(default=None, name="not"))
         cls.__annotations__ = annotations
 
-        input_type = strawberry.input(cls, name=name)
+        input_type = cast(TFilterClass, strawberry.input(cls, name=name))
         input_type.__sc_filter_definition__ = PublicFilterDefinition(
             input_type=input_type,
             model=model,

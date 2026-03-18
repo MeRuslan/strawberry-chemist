@@ -1,6 +1,7 @@
 from __future__ import annotations
 
 from collections import defaultdict
+from collections.abc import Generator
 
 from strawberry.extensions import SchemaExtension
 
@@ -9,7 +10,7 @@ from .loaders import DataLoaderContainer
 
 
 class DataLoadersExtension(SchemaExtension):
-    def on_operation(self):
+    def on_operation(self) -> Generator[None, None, None]:
         context: SQLAlchemyContext = self.execution_context.context
         context.dataloader_container = DataLoaderContainer()
         context_var.set(context)
@@ -17,7 +18,7 @@ class DataLoadersExtension(SchemaExtension):
 
 
 class SelectionCacheExtension(SchemaExtension):
-    def on_operation(self):
+    def on_operation(self) -> Generator[None, None, None]:
         context: SQLAlchemyContext = self.execution_context.context
         context.field_sub_selections = defaultdict(set)
         yield None
