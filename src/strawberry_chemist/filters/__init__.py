@@ -373,13 +373,13 @@ class PublicFilterDefinition(FilterDefinition):
 
 def filter(model, *, name: Optional[str] = None):
     def wrapper(cls):
-        annotations = dict(getattr(cls, "__annotations__", {}))
+        annotations = dict(cls.__dict__.get("__annotations__", {}))
         field_definitions: Dict[str, FilterFieldDefinition] = {}
 
         for field_name, annotation in list(annotations.items()):
             if field_name in {"and_", "or_", "not_"}:
                 continue
-            definition = getattr(cls, field_name, None)
+            definition = cls.__dict__.get(field_name)
             if not isinstance(definition, FilterFieldDefinition):
                 continue
             field_definitions[field_name] = definition

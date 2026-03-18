@@ -3,6 +3,7 @@ from __future__ import annotations
 from dataclasses import dataclass, field
 from typing import Any, Optional
 
+from sqlalchemy.orm import QueryableAttribute
 from sqlalchemy.sql import Select
 
 
@@ -30,6 +31,15 @@ def infer_model_from_query(stmt: Select) -> type:
     raise ValueError("Could not infer SQLAlchemy model from query")
 
 
+def _get_queryable_attribute(
+    model: type[Any],
+    attribute_name: str,
+) -> QueryableAttribute[Any]:
+    attribute = getattr(model, attribute_name)
+    assert isinstance(attribute, QueryableAttribute)
+    return attribute
+
+
 def resolve_model_path(
     stmt: Select,
     model: type,
@@ -38,7 +48,7 @@ def resolve_model_path(
 ) -> tuple[Select, Any]:
     joins = joins if joins is not None else set()
     if "." not in path:
-        return stmt, getattr(model, path)
+        return stmt, _get_queryable_attribute(model, path)
 
     current_model = model
     parts = path.split(".")
@@ -46,10 +56,10 @@ def resolve_model_path(
     for relation_name in parts[:-1]:
         traversed.append(relation_name)
         join_key = ".".join(traversed)
-        relation = getattr(current_model, relation_name)
+        relation = _get_queryable_attribute(current_model, relation_name)
         if join_key not in joins:
             stmt = stmt.outerjoin(relation)
             joins.add(join_key)
         current_model = relation.property.mapper.class_
 
-    return stmt, getattr(current_model, parts[-1])
+    return stmt, _get_queryable_attribute(current_model, parts[-1])

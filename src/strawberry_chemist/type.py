@@ -48,7 +48,9 @@ def get_model_field(
             f"Got error while preparing strawberry type {container.origin} at field '{field_name}'. \n"
             f"Cause: model {container.model} has no field '{field_name}'"
         )
-    return getattr(container.model, field_name)
+    attribute = getattr(container.model, field_name)
+    assert isinstance(attribute, InstrumentedAttribute)
+    return attribute
 
 
 def maybe_get_model_field(
@@ -56,7 +58,9 @@ def maybe_get_model_field(
 ) -> Optional[InstrumentedAttribute]:
     if not field_name or not hasattr(container.model, field_name):
         return None
-    return getattr(container.model, field_name)
+    attribute = getattr(container.model, field_name)
+    assert isinstance(attribute, InstrumentedAttribute)
+    return attribute
 
 
 def enums(

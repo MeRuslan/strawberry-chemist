@@ -10,6 +10,7 @@ from sqlalchemy import and_, select
 from strawberry import BasePermission
 from strawberry.schema.types.concrete_type import ConcreteType
 from strawberry.types import Info
+from sqlalchemy.orm import InstrumentedAttribute
 from strawberry.types.base import StrawberryObjectDefinition
 
 from strawberry_chemist import utils
@@ -36,6 +37,15 @@ def compose_node_id(
     del schema
     values = tuple(str(getattr(source, field_name)) for field_name in definition.ids)
     return strawberry.ID(definition.codec.encode(definition.node_name, values))
+
+
+def _get_model_attribute(
+    model: type[Any],
+    field_name: str,
+) -> InstrumentedAttribute[Any]:
+    attribute = getattr(model, field_name)
+    assert isinstance(attribute, InstrumentedAttribute)
+    return attribute
 
 
 def build_node_id_field(
@@ -94,7 +104,7 @@ async def resolve_node(
         return None
 
     conditions = [
-        getattr(definition.model, field_name)
+        _get_model_attribute(definition.model, field_name)
         == _coerce_identifier_value(definition, field_name, raw_value)
         for field_name, raw_value in zip(definition.ids, values)
     ]
@@ -349,7 +359,7 @@ def _node_types_for_model(
 def _coerce_identifier_value(
     definition: NodeDefinition, field_name: str, raw_value: str
 ):
-    attribute = getattr(definition.model, field_name)
+    attribute = _get_model_attribute(definition.model, field_name)
     try:
         python_type = attribute.property.columns[0].type.python_type
     except Exception:

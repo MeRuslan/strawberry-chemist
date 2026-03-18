@@ -1,8 +1,10 @@
 from abc import ABC
 from itertools import groupby
+from operator import attrgetter
 from typing import (
     Any,
     Callable,
+    cast,
     List,
     Optional,
     Tuple,
@@ -25,8 +27,10 @@ from sqlalchemy import (
     ColumnElement,
     literal,
 )
-from sqlalchemy.orm import RelationshipProperty, aliased, Load
+from sqlalchemy.orm import QueryableAttribute, RelationshipProperty, aliased, Load
+from sqlalchemy.orm.util import AliasedClass
 from sqlalchemy.sql import Values, visitors
+from sqlalchemy.sql.base import ReadOnlyColumnCollection
 from strawberry.dataloader import DataLoader
 
 from strawberry_chemist.connection.base import SQLAlchemyBaseConnectionField
@@ -44,16 +48,40 @@ ParentKey: TypeAlias = tuple[Any, ...]
 ORMRow: TypeAlias = tuple[Any, ...]
 
 
+def _get_queryable_attribute(
+    target: type[Any] | AliasedClass[Any],
+    field_name: str,
+) -> QueryableAttribute[Any]:
+    attribute = getattr(target, field_name)
+    assert isinstance(attribute, QueryableAttribute)
+    return attribute
+
+
+def _get_proxy_set(column: ColumnExpression) -> frozenset[ColumnExpression]:
+    return cast("frozenset[ColumnExpression]", column.proxy_set)
+
+
+def _get_column_by_name(
+    columns: ReadOnlyColumnCollection[str, ColumnElement[Any]],
+    column_name: str,
+) -> ColumnElement[Any]:
+    column = columns.get(column_name)
+    assert column is not None
+    return column
+
+
 def generate_via_field_loader_fn(model: type[Any], field_name: str = "id"):
     async def _via_id_loader(ids: List[Any]) -> List[Any | None]:
         ctx = context_var.get()
+        model_field = _get_queryable_attribute(model, field_name)
+        key_getter = attrgetter(field_name)
 
-        query = select(model).filter(getattr(model, field_name).in_(ids))
+        query = select(model).filter(model_field.in_(ids))
         async with ctx.get_session() as session:
             loaded_objects = list((await session.scalars(query)).all())
 
         objects_by_key: Dict[Any, Any] = {
-            getattr(obj, field_name): obj for obj in loaded_objects
+            key_getter(obj): obj for obj in loaded_objects
         }
         return [objects_by_key.get(_id, None) for _id in ids]
 
@@ -143,7 +171,9 @@ def restrict_fields(
     #   UPD: https://github.com/sqlalchemy/sqlalchemy/issues/9373#issuecomment-1445341424
     if sqlalchemy.inspect(target).mapper.polymorphic_identity is None:
         load_only_fields = [
-            getattr(target, field.key) for field in fields if field.key is not None
+            _get_queryable_attribute(target, field.key)
+            for field in fields
+            if field.key is not None
         ]
         if load_only_fields:
             return query.options(Load(target).load_only(*load_only_fields))
@@ -179,8 +209,10 @@ def _extract_ordered_columns(
     ordered_columns: Set[ColumnExpression] = set()
 
     def _collect_column(column: Any) -> None:
+        if not isinstance(column, ColumnElement):
+            return
         ordered_columns.add(column)
-        ordered_columns.update(getattr(column, "proxy_set", (column,)))
+        ordered_columns.update(_get_proxy_set(column))
 
     for clause in order_by_clauses:
         visitors.traverse(clause, {}, {"column": _collect_column})
@@ -197,9 +229,7 @@ def add_primary_key_tie_breaker(query: Select[Any], model: Any) -> Select[Any]:
     missing_pk_columns = [
         pk
         for pk in pk_columns
-        if not any(
-            proxy in ordered_columns for proxy in getattr(pk, "proxy_set", (pk,))
-        )
+        if not any(proxy in ordered_columns for proxy in _get_proxy_set(pk))
     ]
     if missing_pk_columns:
         query = query.order_by(*missing_pk_columns)
@@ -335,9 +365,11 @@ class UnionLoadingStrategy(ChildrenLoadingStrategy):
         union = union_all(*q_list)
         union_sub = union.subquery()
         related_alias = aliased(model, union_sub)
-        parent_keys = getattr(union_sub.c, UnionLoadingStrategy.literal_value_name)
+        selected_parent_keys = _get_column_by_name(
+            union_sub.c, UnionLoadingStrategy.literal_value_name
+        )
 
-        f_sq = select(parent_keys, related_alias).select_from(union_sub)
+        f_sq = select(selected_parent_keys, related_alias).select_from(union_sub)
         return f_sq, related_alias
 
 
