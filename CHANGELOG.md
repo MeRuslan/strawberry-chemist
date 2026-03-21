@@ -4,6 +4,23 @@ All notable changes to this project will be documented in this file.
 
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
 
+## [0.6.1] - 2026-03-21
+
+### Fixed
+
+- Fixed async `permission_classes=[...]` on Chemist relation-backed fields so
+  connections and relationships continue through Strawberry's async execution
+  path instead of leaking un-awaited coroutines.
+- Preserved Strawberry field permission metadata when Chemist upgrades inherited
+  or declared fields through `from_field(...)`, including interface-driven
+  upgrades from `sc.field(...)` into relationship-backed Chemist fields.
+
+### Added
+
+- Added inheritance regression coverage for interface-defined fields on Chemist
+  types, including both simple-field inheritance and the relation-field upgrade
+  path with permissions.
+
 ## [0.6.0] - 2026-03-18
 
 ### Added
@@ -195,6 +212,8 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
 - Made non-Postgres tests the default pytest selection.
 - Moved Postgres-only tests under the `psql` marker.
 
+[0.6.1]: https://github.com/MeRuslan/strawberry-chemist/releases/tag/0.6.1
+[0.6.0]: https://github.com/MeRuslan/strawberry-chemist/releases/tag/0.6.0
 [0.5.0]: https://github.com/MeRuslan/strawberry-chemist/releases/tag/0.5.0
 [0.4.0]: https://github.com/MeRuslan/strawberry-chemist/releases/tag/0.4.0
 [0.3.1]: https://github.com/MeRuslan/strawberry-chemist/releases/tag/0.3.1
