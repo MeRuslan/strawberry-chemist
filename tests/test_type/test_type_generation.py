@@ -1,11 +1,18 @@
 import datetime
 import inspect
+from dataclasses import dataclass
 from typing import Optional, List
 
 import pytest
 import strawberry
 from sqlalchemy import ForeignKey, Time, Interval, ARRAY, String
-from sqlalchemy.orm import DeclarativeBase, Mapped, mapped_column, relationship
+from sqlalchemy.orm import (
+    DeclarativeBase,
+    Mapped,
+    composite,
+    mapped_column,
+    relationship,
+)
 
 import strawberry_chemist
 
@@ -27,6 +34,64 @@ def test_raw_type():
     assert Node.__strawberry_definition__.name == "Node"
     assert Node.__strawberry_definition__.fields[0].python_name == "int_field"
     assert Node.__strawberry_definition__.fields[1].python_name == "str_field"
+
+
+def test_raw_type_supports_composite_proxy_descriptors():
+    class Base(DeclarativeBase):  # noqa
+        pass
+
+    @dataclass
+    class BirthDateValue:
+        year: int
+        month: int
+        day: int
+
+    class Character(Base):
+        __tablename__ = "character_with_composite_birth_date"
+        id: Mapped[int] = mapped_column(primary_key=True)
+        birth_year: Mapped[int] = mapped_column()
+        birth_month: Mapped[int] = mapped_column()
+        birth_day: Mapped[int] = mapped_column()
+        birth_date: Mapped[BirthDateValue] = composite(
+            BirthDateValue,
+            birth_year,
+            birth_month,
+            birth_day,
+        )
+
+    @strawberry.type
+    class BirthDate:
+        year: int
+        month: int
+        day: int
+
+    @strawberry_chemist.type(model=Character)
+    class CharacterNode:
+        id: int
+        birth_date: BirthDate
+
+    @strawberry.type
+    class Query:
+        @strawberry.field
+        def character(self) -> CharacterNode:
+            return Character(
+                id=1,
+                birth_date=BirthDateValue(year=1980, month=1, day=2),
+            )
+
+    schema = strawberry.Schema(query=Query)
+    result = schema.execute_sync("{ character { birthDate { year month day } } }")
+
+    assert result.errors is None
+    assert result.data == {
+        "character": {
+            "birthDate": {
+                "year": 1980,
+                "month": 1,
+                "day": 2,
+            }
+        }
+    }
 
 
 def test_type_mismatch():

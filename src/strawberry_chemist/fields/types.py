@@ -5,7 +5,7 @@ from typing import TYPE_CHECKING, Optional, Type, Union
 
 import sqlalchemy
 import sqlalchemy.orm
-from sqlalchemy.orm import ColumnProperty, InstrumentedAttribute, RelationshipProperty
+from sqlalchemy.orm import ColumnProperty, QueryableAttribute, RelationshipProperty
 
 if TYPE_CHECKING:
     from strawberry_chemist.type import StrawberrySQLAlchemyType
@@ -48,7 +48,7 @@ ASSERT_ON_UNKNOWN_SQLA_TYPE = False
 
 
 def resolve_model_field_type(
-    model_field: InstrumentedAttribute,
+    model_field: QueryableAttribute,
     container_type: "StrawberrySQLAlchemyType",
 ) -> Optional[Type[STR_SQLA_SCALAR_TYPES]]:
     # sqlalchemy returns a concrete field type for model_field.type, thus need type(...)

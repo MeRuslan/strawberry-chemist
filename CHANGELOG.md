@@ -4,6 +4,20 @@ All notable changes to this project will be documented in this file.
 
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
 
+## [0.6.3] - 2026-03-21
+
+### Fixed
+
+- Restored raw-field support for SQLAlchemy composite attributes such as
+  `Character.birth_date` by accepting SQLAlchemy proxy descriptors during type
+  processing instead of requiring every mapped attribute to be an
+  `InstrumentedAttribute`.
+
+### Added
+
+- Added regression coverage for composite raw fields to ensure Chemist types
+  can expose `composite(...)` model attributes and resolve them through GraphQL.
+
 ## [0.6.2] - 2026-03-21
 
 ### Fixed
@@ -226,6 +240,7 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
 - Made non-Postgres tests the default pytest selection.
 - Moved Postgres-only tests under the `psql` marker.
 
+[0.6.3]: https://github.com/MeRuslan/strawberry-chemist/releases/tag/0.6.3
 [0.6.2]: https://github.com/MeRuslan/strawberry-chemist/releases/tag/0.6.2
 [0.6.1]: https://github.com/MeRuslan/strawberry-chemist/releases/tag/0.6.1
 [0.6.0]: https://github.com/MeRuslan/strawberry-chemist/releases/tag/0.6.0

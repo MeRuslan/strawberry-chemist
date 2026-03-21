@@ -6,10 +6,10 @@ from typing import Any, Optional, Protocol, Type, runtime_checkable
 import strawberry
 from sqlalchemy.engine import Row
 from sqlalchemy.orm import (
-    InstrumentedAttribute,
-    RelationshipProperty,
     ColumnProperty,
     CompositeProperty,
+    QueryableAttribute,
+    RelationshipProperty,
 )
 from strawberry import auto
 from strawberry.annotation import StrawberryAnnotation
@@ -42,24 +42,24 @@ class StrawberrySQLAlchemyType:
 
 def get_model_field(
     container: StrawberrySQLAlchemyType, field_name: str
-) -> InstrumentedAttribute:
+) -> QueryableAttribute[Any]:
     if not hasattr(container.model, field_name):
         raise AttributeError(
             f"Got error while preparing strawberry type {container.origin} at field '{field_name}'. \n"
             f"Cause: model {container.model} has no field '{field_name}'"
         )
     attribute = getattr(container.model, field_name)
-    assert isinstance(attribute, InstrumentedAttribute)
+    assert isinstance(attribute, QueryableAttribute)
     return attribute
 
 
 def maybe_get_model_field(
     container: StrawberrySQLAlchemyType, field_name: Optional[str]
-) -> Optional[InstrumentedAttribute]:
+) -> Optional[QueryableAttribute[Any]]:
     if not field_name or not hasattr(container.model, field_name):
         return None
     attribute = getattr(container.model, field_name)
-    assert isinstance(attribute, InstrumentedAttribute)
+    assert isinstance(attribute, QueryableAttribute)
     return attribute
 
 
@@ -74,7 +74,7 @@ def enums(
 
 def warn_on_type_mismatch(
     container_type: StrawberrySQLAlchemyType,
-    model_field: Optional[InstrumentedAttribute],
+    model_field: Optional[QueryableAttribute[Any]],
     field_annotation: StrawberryAnnotation,
     initial_field: StrawberrySQLAlchemyField,
 ):
