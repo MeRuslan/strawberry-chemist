@@ -287,6 +287,10 @@ class StrawberrySQLAlchemyRelationField(StrawberrySQLAlchemyField):
     parent_select_fields: tuple[str, ...]
     source_param_name: str | None
 
+    # need to state it clearly, strawberry might handle as a sync one
+    #   and fail on complex scenarios with async permissions
+    is_async = True
+
     def __init__(
         self,
         where: Optional[Sequence[Any]] = None,
