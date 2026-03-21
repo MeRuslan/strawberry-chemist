@@ -174,6 +174,16 @@ class StrawberrySQLAlchemyField(StrawberryField):
             return field
 
         metadata = field if isinstance(field, StrawberrySQLAlchemyField) else None
+        permission_classes = list(getattr(field, "permission_classes", ()))
+        extensions = list(field.extensions)
+        if permission_classes:
+            from strawberry.permission import PermissionExtension
+
+            extensions = [
+                extension
+                for extension in extensions
+                if not isinstance(extension, PermissionExtension)
+            ]
         new_field = cls(
             base_resolver=field.base_resolver,
             default_factory=field.default_factory,
@@ -187,6 +197,14 @@ class StrawberrySQLAlchemyField(StrawberryField):
             python_name=field.name,
             type_annotation=field.type_annotation or StrawberryAnnotation(field.type),
             select=metadata.select_fields if metadata is not None else None,
+            origin=field.origin,
+            is_subscription=field.is_subscription,
+            description=field.description,
+            permission_classes=permission_classes,
+            metadata=field.metadata,
+            deprecation_reason=field.deprecation_reason,
+            directives=tuple(field.directives),
+            extensions=extensions,
         )
         if metadata is None:
             return new_field
