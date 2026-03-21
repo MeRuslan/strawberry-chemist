@@ -4,6 +4,20 @@ All notable changes to this project will be documented in this file.
 
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
 
+## [0.6.2] - 2026-03-21
+
+### Fixed
+
+- Evaluated callable `where=` clauses at loader runtime for relationships and
+  connections instead of passing raw lambdas through to SQLAlchemy.
+- Restored support for request-context-dependent `where=[lambda: ...]` filters,
+  including lists of callable clauses that read from `context_var`.
+
+### Added
+
+- Added loader regression coverage for callable `where=` clauses on both
+  relationship-backed and root connection queries.
+
 ## [0.6.1] - 2026-03-21
 
 ### Fixed
@@ -212,6 +226,7 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
 - Made non-Postgres tests the default pytest selection.
 - Moved Postgres-only tests under the `psql` marker.
 
+[0.6.2]: https://github.com/MeRuslan/strawberry-chemist/releases/tag/0.6.2
 [0.6.1]: https://github.com/MeRuslan/strawberry-chemist/releases/tag/0.6.1
 [0.6.0]: https://github.com/MeRuslan/strawberry-chemist/releases/tag/0.6.0
 [0.5.0]: https://github.com/MeRuslan/strawberry-chemist/releases/tag/0.5.0
