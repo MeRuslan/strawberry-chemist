@@ -4,6 +4,20 @@ All notable changes to this project will be documented in this file.
 
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
 
+## [0.6.4] - 2026-03-22
+
+### Added
+
+- Added global `sc.configure(use_single_loader_session=True)` support so
+  Chemist-managed loaders can reuse one request-local SQLAlchemy
+  `AsyncSession` instead of opening a new session for each internal load.
+
+### Changed
+
+- Loader session reuse is now tracked through explicit `SQLAlchemyContext`
+  fields rather than dynamic attribute assignment, and shared-session access is
+  serialized internally to avoid concurrent `AsyncSession` use.
+
 ## [0.6.3] - 2026-03-21
 
 ### Fixed

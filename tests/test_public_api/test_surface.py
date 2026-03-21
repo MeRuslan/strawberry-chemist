@@ -114,6 +114,7 @@ def test_builder_signatures_match_documented_surface() -> None:
     field_params = inspect.signature(sc.field).parameters
     relationship_params = inspect.signature(sc.relationship).parameters
     connection_params = inspect.signature(sc.connection).parameters
+    configure_params = inspect.signature(sc.configure).parameters
 
     assert "select" in field_params
     assert "sqlalchemy_name" not in field_params
@@ -136,6 +137,8 @@ def test_builder_signatures_match_documented_surface() -> None:
     assert "default_order_by" in connection_params
     assert "parent_select" in connection_params
     assert "sqlalchemy_name" not in connection_params
+
+    assert "use_single_loader_session" in configure_params
 
 
 def test_builders_reject_removed_legacy_kwargs() -> None:

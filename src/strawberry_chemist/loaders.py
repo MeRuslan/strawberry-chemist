@@ -38,7 +38,7 @@ from strawberry_chemist.fields.field import (
     StrawberrySQLAlchemyField,
     StrawberrySQLAlchemyRelationField,
 )
-from strawberry_chemist.gql_context import context_var
+from strawberry_chemist.gql_context import context_var, get_loader_session
 from strawberry_chemist.pagination.base import CountedPaginationPolicy
 
 
@@ -89,7 +89,7 @@ def generate_via_field_loader_fn(model: type[Any], field_name: str = "id"):
         key_getter = attrgetter(field_name)
 
         query = select(model).filter(model_field.in_(ids))
-        async with ctx.get_session() as session:
+        async with get_loader_session(ctx) as session:
             loaded_objects = list((await session.scalars(query)).all())
 
         objects_by_key: Dict[Any, Any] = {
@@ -431,7 +431,7 @@ class LoadViaParents(ABC):
         local_columns = relationship_property.local_columns
         local_columns_len = len(local_columns)
         parent_c_names, parent_c_data = self.extract_parents_keys(parents)
-        async with ctx.get_session() as asession:
+        async with get_loader_session(ctx) as asession:
             bind = asession.get_bind()
             loading_strategy = self.resolve_loading_strategy(
                 bind.dialect.name if bind is not None else None,
@@ -569,7 +569,7 @@ class ConnectionLoader(LoadViaParents):
             fields,
             self.connection.pagination.paginate_query(query, self.page_input),
         )
-        async with ctx.get_session() as asession:
+        async with get_loader_session(ctx) as asession:
             total_count = 0
             if isinstance(self.connection.pagination, CountedPaginationPolicy):
                 total_count = (

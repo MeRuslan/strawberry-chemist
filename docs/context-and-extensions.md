@@ -16,6 +16,16 @@ Your GraphQL context should provide:
 At runtime, `sc.extensions()` also attaches the internal dataloader container
 and the field-selection cache used by Chemist-managed fields.
 
+If you want Chemist-managed loaders to reuse one request-local session instead
+of opening a new `AsyncSession` per internal load, call:
+
+```python
+sc.configure(use_single_loader_session=True)
+```
+
+That setting only changes Chemist's internal loader queries. Your own root
+resolvers and custom fields still use `info.context.get_session()` directly.
+
 ## Schema integration
 
 ```python

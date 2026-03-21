@@ -85,6 +85,12 @@ class Author:
 Your GraphQL context must provide a `get_session()` async context manager that
 returns a SQLAlchemy `AsyncSession`.
 
+If loader session churn matters for a heavy query, call
+`sc.configure(use_single_loader_session=True)` before schema creation.
+Chemist-managed loaders will reuse one request-local `AsyncSession` for their
+internal work; your own resolvers still control session usage through
+`info.context.get_session()`.
+
 ## Public docs
 
 The public docs live in [docs/](docs/). The published site is
