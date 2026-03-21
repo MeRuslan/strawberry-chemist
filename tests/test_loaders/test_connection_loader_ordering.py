@@ -3,6 +3,7 @@ from typing import Optional, Sequence
 from sqlalchemy import Integer, String
 from sqlalchemy.orm import DeclarativeBase, Mapped, mapped_column
 
+from strawberry_chemist.gql_context import context_var
 from strawberry_chemist.loaders import ConnectionLoader
 
 
@@ -32,18 +33,31 @@ class DummyPagination:
 
 
 class DummyConnection:
-    def __init__(self, model, default_order_by: Optional[Sequence] = None):
+    def __init__(
+        self,
+        model,
+        default_order_by: Optional[Sequence] = None,
+        where: Sequence | None = None,
+    ):
         self.sqlalchemy_model = model
         self.default_order_by = default_order_by
-        self.where = ()
+        self.where = tuple(where or ())
         self.order = None
         self.filter = None
         self.pagination = DummyPagination()
 
 
-def build_query(model, default_order_by: Optional[Sequence] = None):
+def build_query(
+    model,
+    default_order_by: Optional[Sequence] = None,
+    where: Sequence | None = None,
+):
     loader = ConnectionLoader(
-        connection=DummyConnection(model=model, default_order_by=default_order_by),
+        connection=DummyConnection(
+            model=model,
+            default_order_by=default_order_by,
+            where=where,
+        ),
         relationship_property=None,
         page_input=(5, None),
         order_input=None,
@@ -89,3 +103,24 @@ def test_connection_loader_without_pk_and_without_explicit_order(monkeypatch):
 
     query = build_query(SinglePkModel)
     assert [str(c) for c in query._order_by_clauses] == []
+
+
+def test_connection_loader_evaluates_callable_where_clauses(mock_context_var):
+    context_var.get().user = type("User", (), {"id": 3})()
+
+    query = build_query(
+        SinglePkModel,
+        where=(
+            lambda: (
+                SinglePkModel.id == context_var.get().user.id
+                if context_var.get().user
+                else False
+            ),
+            lambda: SinglePkModel.name == "Bilbo",
+        ),
+    )
+
+    assert [str(clause) for clause in query._where_criteria] == [
+        "single_pk_model.id = :id_1",
+        "single_pk_model.name = :name_1",
+    ]

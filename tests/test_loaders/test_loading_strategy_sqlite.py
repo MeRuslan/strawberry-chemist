@@ -12,6 +12,7 @@ from sqlalchemy.orm import (
 )
 
 from strawberry_chemist import relationship as chemist_relationship
+from strawberry_chemist.gql_context import context_var
 from strawberry_chemist.loaders import (
     UnionLoadingStrategy,
     LoadViaParents,
@@ -223,6 +224,50 @@ async def test_load_children_for_many_using_loader_with_where_clause(
                 select(OneOrManyThrough).where(OneOrManyThrough.name == "Victor")
             )
         ).scalar_one()
+    list_of_children_by_parent = await rel_load.__call__([alice, victor])
+
+    assert len(list_of_children_by_parent) == 2
+    kids = list_of_children_by_parent[0]
+    assert len(kids) == 1
+    assert kids[0].child_name == "A2"
+    kids = list_of_children_by_parent[1]
+    assert len(kids) == 0
+
+
+@pytest.mark.asyncio
+async def test_load_children_for_many_using_loader_with_callable_where_clauses(
+    data_session, mock_context_var
+):
+    context_var.get().user = type("User", (), {"id": 11})()
+
+    field = chemist_relationship(
+        load="full",
+        where=[
+            lambda: (
+                ManyThrough.age == context_var.get().user.id
+                if context_var.get().user
+                else False
+            ),
+            lambda: ManyThrough.child_name.like("A%"),
+        ],
+    )
+    field.relationship_property = OneOrManyThrough.children.prop
+    rel_load = RelationshipLoader(
+        relationship_property=OneOrManyThrough.children.prop, field=field
+    )
+
+    async with data_session as session:
+        alice: OneOrManyThrough = (
+            await session.execute(
+                select(OneOrManyThrough).where(OneOrManyThrough.name == "Alice")
+            )
+        ).scalar_one()
+        victor: OneOrManyThrough = (
+            await session.execute(
+                select(OneOrManyThrough).where(OneOrManyThrough.name == "Victor")
+            )
+        ).scalar_one()
+
     list_of_children_by_parent = await rel_load.__call__([alice, victor])
 
     assert len(list_of_children_by_parent) == 2

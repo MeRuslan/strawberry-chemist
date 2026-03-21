@@ -70,6 +70,18 @@ def _get_column_by_name(
     return column
 
 
+def _resolve_where_clause(clause: Any) -> Any:
+    if callable(clause):
+        return clause()
+    return clause
+
+
+def _apply_where_clauses(query: Select[Any], clauses: Sequence[Any]) -> Select[Any]:
+    for clause in clauses:
+        query = query.filter(_resolve_where_clause(clause))
+    return query
+
+
 def generate_via_field_loader_fn(model: type[Any], field_name: str = "id"):
     async def _via_id_loader(ids: List[Any]) -> List[Any | None]:
         ctx = context_var.get()
@@ -458,8 +470,7 @@ class RelationshipLoader(LoadViaParents):
         relationship_property = self.require_relationship_property()
         query = select(relationship_property.mapper)
         if self.field.where:
-            for f in self.field.where:
-                query = query.filter(f)
+            query = _apply_where_clauses(query, self.field.where)
         elif relationship_property.order_by:
             query = query.order_by(*relationship_property.order_by)
         return query
@@ -505,8 +516,7 @@ class ConnectionLoader(LoadViaParents):
         relationship_property = self.relationship_property
 
         if self.connection.where:
-            for f in self.connection.where:
-                query = query.filter(f)
+            query = _apply_where_clauses(query, self.connection.where)
         # order using user input or defaults provided by relationship/connection.
         if self.order_input and self.connection.order is not None:
             query = self.connection.order.order_query(query, self.order_input)
