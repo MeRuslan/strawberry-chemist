@@ -25,6 +25,9 @@ sc.configure(use_single_loader_session=True)
 
 That setting only changes Chemist's internal loader queries. Your own root
 resolvers and custom fields still use `info.context.get_session()` directly.
+Chemist drains in-flight shared-session loader work before operation teardown
+closes the shared session, and any late internal loads during shutdown fall
+back to a fresh short-lived session.
 
 ## Schema integration
 

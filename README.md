@@ -89,7 +89,9 @@ If loader session churn matters for a heavy query, call
 `sc.configure(use_single_loader_session=True)` before schema creation.
 Chemist-managed loaders will reuse one request-local `AsyncSession` for their
 internal work; your own resolvers still control session usage through
-`info.context.get_session()`.
+`info.context.get_session()`. During operation teardown, Chemist drains
+in-flight shared-session loader work before closing that session, and any
+late-arriving internal loads fall back to a fresh short-lived session.
 
 ## Public docs
 

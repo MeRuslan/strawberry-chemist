@@ -4,6 +4,14 @@ All notable changes to this project will be documented in this file.
 
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
 
+## [0.6.5] - 2026-03-22
+
+### Fixed
+
+- Shared loader-session teardown now drains in-flight borrowers before closing
+  the request-local `AsyncSession`, and late internal loads during shutdown
+  fall back to fresh short-lived sessions instead of racing the close.
+
 ## [0.6.4] - 2026-03-22
 
 ### Added
