@@ -4,6 +4,20 @@ All notable changes to this project will be documented in this file.
 
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
 
+## [0.6.6] - 2026-05-15
+
+### Added
+
+- Added `sc.interface(model=...)` for declaring SQLAlchemy-backed Strawberry
+  interfaces with the same field processing and model metadata used by
+  `sc.type(model=...)`.
+
+### Fixed
+
+- Fixed root `sc.Connection[InterfaceType]` fields for model-backed interfaces
+  so they resolve the SQLAlchemy model from the interface metadata instead of
+  requiring relationship metadata.
+
 ## [0.6.5] - 2026-03-22
 
 ### Fixed
