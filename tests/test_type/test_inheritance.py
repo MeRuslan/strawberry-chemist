@@ -106,3 +106,39 @@ def test_interface_field_upgrade_to_relation_field_retains_permissions() -> None
         interface.name for interface in Book.__strawberry_definition__.interfaces
     ] == ["HasAuthor"]
     assert Book.author.permission_classes == [Deny]
+
+
+def test_model_backed_interface_can_drive_root_connection_model() -> None:
+    class Base(DeclarativeBase):
+        pass
+
+    class BookModel(Base):
+        __tablename__ = "book_model_backed_interface_connection"
+
+        id: Mapped[int] = mapped_column(Integer, primary_key=True)
+        title: Mapped[str] = mapped_column(String)
+
+    @sc.interface(model=BookModel)
+    class BookInterface:
+        title: str
+
+    @sc.type(model=BookModel)
+    class Book(BookInterface):
+        pass
+
+    @strawberry.type
+    class Query:
+        books: sc.Connection[BookInterface] = sc.connection()
+
+    schema = strawberry.Schema(query=Query, types=(Book,), extensions=sc.extensions())
+    del schema
+
+    field = next(
+        field
+        for field in Query.__strawberry_definition__.fields
+        if field.python_name == "books"
+    )
+
+    assert isinstance(BookInterface.title, StrawberrySQLAlchemyField)
+    assert field.sqlalchemy_model is BookModel
+    assert field.relationship_property is None

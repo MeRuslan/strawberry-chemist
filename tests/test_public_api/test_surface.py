@@ -14,6 +14,7 @@ def test_top_level_exports_match_public_surface() -> None:
     assert hasattr(sc, "OrderContext")
     assert hasattr(sc, "PaginationPolicy")
     assert hasattr(sc, "configure")
+    assert hasattr(sc, "interface")
     assert hasattr(sc, "node_id")
     assert hasattr(sc, "node_lookup")
     assert hasattr(sc, "reset_config")

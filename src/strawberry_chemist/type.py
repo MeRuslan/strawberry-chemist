@@ -348,6 +348,14 @@ def type(model, *args, **kwargs):
     return wrapper
 
 
+def interface(model, *args, **kwargs):
+    def wrapper(cls):
+        wrapped = _wrap_dataclass(cls)
+        return process_type(wrapped, model, is_interface=True, **kwargs)
+
+    return wrapper
+
+
 def input(model, *, partial=False, **kwargs):
     return type(model, partial=partial, is_input=True, **kwargs)
 

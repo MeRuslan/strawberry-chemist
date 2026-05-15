@@ -4,7 +4,7 @@ if not hasattr(strawberry, "Info"):
     setattr(strawberry, "Info", strawberry.types.Info)
 
 from .settings import configure, reset_config
-from .type import input, mutation, type
+from .type import input, interface, mutation, type
 from .fields.field import RelationshipLoad, attr, field, relationship
 from .connection import connection
 from .extensions import extensions
@@ -78,6 +78,7 @@ __all__ = [
     # "mutations",
     # "django_resolver",
     "type",
+    "interface",
     "input",
     "mutation",
     "node_id",
