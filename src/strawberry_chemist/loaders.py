@@ -172,6 +172,25 @@ def local_key_sql_values(
     return value_expr
 
 
+def local_key_sql_unnest(data: List[Any], local_cs: Sequence[ColumnExpression]) -> Any:
+    # parent keys travel as array bind parameters, so the statement's cache key
+    # doesn't depend on them (a VALUES with literal rows has no cache key at all)
+    arrays = [
+        sqlalchemy.bindparam(
+            f"parent_key_{i}",
+            value=[row[i] for row in data],
+            type_=sqlalchemy.ARRAY(l_c.type),
+            unique=True,
+        )
+        for i, l_c in enumerate(local_cs)
+    ]
+    return (
+        sqlalchemy.func.unnest(*arrays)
+        .table_valued(*[column(l_c.name, l_c.type) for l_c in local_cs])
+        .render_derived(name="parent_values")
+    )
+
+
 def restrict_fields(
     target: Any, fields: Sequence[ColumnExpression], query: Select[Any]
 ):
@@ -296,13 +315,20 @@ class ValuesLoadingStrategy(ChildrenLoadingStrategy):
     """
 
     @staticmethod
+    def parent_keys_selectable(
+        data: List[ParentKey], local_cs: Sequence[ColumnExpression]
+    ) -> Any:
+        return local_key_sql_values(data, local_cs)
+
+    @classmethod
     def construct_query(
+        cls,
         relationship_property: RelationshipProperty[Any],
         parent_columns: Tuple[str, ...],
         parent_data: List[ParentKey],
         query: Select[Any],
     ) -> tuple[Select[Any], Any]:
-        parent_data_local = ValuesLoadingStrategy.filter_all_nones(parent_data)
+        parent_data_local = cls.filter_all_nones(parent_data)
         model: Any = relationship_property.entity.entity
         if not parent_data_local:
             return query.where(sqlalchemy.false()), model
@@ -325,7 +351,7 @@ class ValuesLoadingStrategy(ChildrenLoadingStrategy):
                 key=lambda x: parent_columns.index(x[0].key),
             )
         )
-        value_expr = local_key_sql_values(parent_data_local, local_keys)
+        value_expr = cls.parent_keys_selectable(parent_data_local, local_keys)
 
         # assert len(remote_keys) == 1, "raise on composites, second guard"
         for r, v in zip(list(remote_keys), list(value_expr.c)):
@@ -337,6 +363,21 @@ class ValuesLoadingStrategy(ChildrenLoadingStrategy):
             value_expr.outerjoin(lateral_query, true())
         )
         return result_q, related_alias
+
+
+class UnnestLoadingStrategy(ValuesLoadingStrategy):
+    """
+    Same lateral join as ValuesLoadingStrategy, but the parent keys come from
+    unnest() over array parameters instead of literal VALUES rows, so SQLAlchemy
+    compiles the statement once per shape instead of on every load.
+    PostgreSQL only (multi-argument unnest); the default there.
+    """
+
+    @staticmethod
+    def parent_keys_selectable(
+        data: List[ParentKey], local_cs: Sequence[ColumnExpression]
+    ) -> Any:
+        return local_key_sql_unnest(data, local_cs)
 
 
 class UnionLoadingStrategy(ChildrenLoadingStrategy):
@@ -387,7 +428,7 @@ class UnionLoadingStrategy(ChildrenLoadingStrategy):
 
 class LoadViaParents(ABC):
     relationship_property: RelationshipProperty[Any] | None
-    loading_strategy: Type[ChildrenLoadingStrategy] = ValuesLoadingStrategy
+    loading_strategy: Type[ChildrenLoadingStrategy] = UnnestLoadingStrategy
 
     def require_relationship_property(self) -> RelationshipProperty[Any]:
         relationship_property = self.relationship_property
@@ -399,8 +440,12 @@ class LoadViaParents(ABC):
         dialect_name: Optional[str],
         loading_strategy: Type[ChildrenLoadingStrategy],
     ) -> Type[ChildrenLoadingStrategy]:
-        if dialect_name == "sqlite" and loading_strategy is ValuesLoadingStrategy:
+        if dialect_name == "sqlite" and issubclass(
+            loading_strategy, ValuesLoadingStrategy
+        ):
             return UnionLoadingStrategy
+        if dialect_name != "postgresql" and loading_strategy is UnnestLoadingStrategy:
+            return ValuesLoadingStrategy
         return loading_strategy
 
     def extract_parents_keys(

@@ -424,6 +424,21 @@ class StrawberrySQLAlchemyRelationField(StrawberrySQLAlchemyField):
     def is_basic_field(self) -> bool:
         return False
 
+    def claim_selection_node(self, info: Info[SQLAlchemyContext, Any]) -> bool:
+        """
+        True the first time this field resolves at a given query node within the
+        operation. The sub-selection is the same for every parent at that node, so
+        it only has to be collected once, not once per parent object.
+        """
+        seen = getattr(info.context, "selection_nodes_seen", None)
+        if seen is None:
+            return True
+        key = (self, id(info._raw_info.field_nodes[0]))
+        if key in seen:
+            return False
+        seen.add(key)
+        return True
+
     @property
     def arguments(self) -> List[StrawberryArgument]:
         gql_arguments = list(super().arguments)
@@ -526,8 +541,9 @@ class StrawberrySQLAlchemyRelationField(StrawberrySQLAlchemyField):
         # filter selections to those which has name attribute
         #  (e.g. not InlineFragment)
         # names = [s.name for s in selections if hasattr(s, 'name')]
-        names = list(drill_for_field_names(info.selected_fields[0].selections))
-        info.context.field_sub_selections[self].update(names)
+        if self.claim_selection_node(info):
+            names = list(drill_for_field_names(info.selected_fields[0].selections))
+            info.context.field_sub_selections[self].update(names)
 
         result = await info.context.dataloader_container.get_dataloader(
             field=self

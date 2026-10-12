@@ -86,14 +86,15 @@ class SQLAlchemyBaseConnectionField(StrawberrySQLAlchemyRelationField):
                 f"{list(self.parent_select_fields)!r}, but only relationship-backed "
                 "connections can declare parent_select."
             )
-        selections = self.pagination.get_fields_from_typed_request(
-            list(iter_selected_fields(info.selected_fields))
-        )
-        # filter selections to those which has name attribute
-        #  (e.g. not InlineFragment)
-        # names = [s.name for s in selections if hasattr(s, 'name')]
-        names = list(drill_for_field_names(selections))
-        info.context.field_sub_selections[self].update(names)
+        if self.claim_selection_node(info):
+            selections = self.pagination.get_fields_from_typed_request(
+                list(iter_selected_fields(info.selected_fields))
+            )
+            # filter selections to those which has name attribute
+            #  (e.g. not InlineFragment)
+            # names = [s.name for s in selections if hasattr(s, 'name')]
+            names = list(drill_for_field_names(selections))
+            info.context.field_sub_selections[self].update(names)
 
         order, filters = None, None
         if is_flat_pagination_policy(self.pagination):

@@ -1,3 +1,4 @@
+import importlib
 import pytest
 from sqlalchemy import select
 from sqlalchemy.orm import joinedload
@@ -304,3 +305,31 @@ async def test_root_connection_parent_select_fails_clearly(
     """
     with pytest.raises(ValueError, match="relationship-backed connections"):
         test_connection_client.post("/", json={"query": query}).json()
+
+
+@pytest.mark.asyncio
+async def test_nested_connection_sub_selection_is_collected_once_per_query_node(
+    authors_books, test_connection_client, monkeypatch
+):
+    # `strawberry_chemist.connection` is shadowed by sc.connection() in the package
+    connection_module = importlib.import_module("strawberry_chemist.connection.base")
+
+    calls = []
+    drill = connection_module.drill_for_field_names
+
+    def counting_drill(selections):
+        calls.append(selections)
+        return drill(selections)
+
+    monkeypatch.setattr(connection_module, "drill_for_field_names", counting_drill)
+    query = (
+        "{ peopleConnection(first: 3) { edges { node { "
+        " name books(first: 3) { edges { node { title } } }"
+        " } } } }"
+    )
+    result = test_connection_client.post("/", json={"query": query}).json()
+
+    assert "errors" not in result
+    assert len(result["data"]["peopleConnection"]["edges"]) == 3
+    # the root connection, and `books` under three people at one query node
+    assert len(calls) == 2

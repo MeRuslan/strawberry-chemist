@@ -4,6 +4,24 @@ All notable changes to this project will be documented in this file.
 
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
 
+## [0.6.7] - 2026-10-12
+
+### Changed
+
+- On PostgreSQL, relationship and connection loaders now pass parent keys as
+  array parameters of `unnest()` (`UnnestLoadingStrategy`, the new default)
+  instead of a literal `VALUES` list. The statements get a SQLAlchemy cache
+  key, so they are compiled once per shape rather than on every load. Other
+  dialects keep `ValuesLoadingStrategy`, SQLite keeps `UnionLoadingStrategy`.
+- Relationship and connection fields collect their sub-selection once per query
+  node in an operation instead of once per parent object. The seen nodes live
+  in `SelectionCacheExtension`'s per-operation state.
+
+### Fixed
+
+- PostgreSQL test fixtures work with pytest-postgresql 8 (`DatabaseJanitor`
+  takes keyword arguments only).
+
 ## [0.6.6] - 2026-05-15
 
 ### Added

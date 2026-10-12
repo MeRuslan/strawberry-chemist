@@ -282,3 +282,56 @@ async def test_relationship_load_full_allows_full_row_transforms(
         res["binaryYear"] for res in result["data"]["personByName"]["bookBinaryYears"]
     ]
     assert set(years) == set(res_binary_years)
+
+
+@pytest.mark.asyncio
+async def test_sub_selection_is_collected_once_per_query_node(
+    relay_with_authors_books, test_relay_client, monkeypatch
+):
+    import strawberry_chemist.fields.field as field_module
+
+    calls = []
+    drill = field_module.drill_for_field_names
+
+    def counting_drill(selections):
+        calls.append(selections)
+        return drill(selections)
+
+    monkeypatch.setattr(field_module, "drill_for_field_names", counting_drill)
+    query = '{ personByName(name: "%s") { books { title author { name } } } }' % (
+        tolkien.name
+    )
+    result = test_relay_client.post("/", json={"query": query}).json()
+
+    assert "errors" not in result
+    books = result["data"]["personByName"]["books"]
+    assert len(books) == 4
+    assert {book["author"]["name"] for book in books} == {tolkien.name}
+    # `books` has one parent, `author` four parents at one query node
+    assert len(calls) == 2
+
+
+@pytest.mark.asyncio
+async def test_sub_selections_of_one_field_at_different_nodes_are_all_loaded(
+    relay_with_authors_books, test_relay_client
+):
+    query = (
+        '{ personByName(name: "%s") { '
+        "byTitle: books { title } byYear: books { year } } }" % tolkien.name
+    )
+    result = test_relay_client.post("/", json={"query": query}).json()
+
+    assert "errors" not in result
+    person = result["data"]["personByName"]
+    assert {book["title"] for book in person["byTitle"]} == {
+        hobbit.title,
+        lotr.title,
+        silmarillion.title,
+        hurin.title,
+    }
+    assert {book["year"] for book in person["byYear"]} == {
+        hobbit.year,
+        lotr.year,
+        silmarillion.year,
+        hurin.year,
+    }

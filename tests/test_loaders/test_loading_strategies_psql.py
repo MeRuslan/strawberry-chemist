@@ -18,6 +18,7 @@ from strawberry_chemist.loaders import (
     process_orm_results_for_dataload,
     RelationshipLoader,
     ValuesLoadingStrategy,
+    UnnestLoadingStrategy,
     ChildrenLoadingStrategy,
 )
 
@@ -156,6 +157,7 @@ def strat_gen(strat: Type[ChildrenLoadingStrategy]):
 
 test_load_children_for_many_using_strategy_union = strat_gen(UnionLoadingStrategy)
 test_load_children_for_many_using_strategy_values = strat_gen(ValuesLoadingStrategy)
+test_load_children_for_many_using_strategy_unnest = strat_gen(UnnestLoadingStrategy)
 
 
 def strat_gen_t2(strat: Type[ChildrenLoadingStrategy]):
@@ -205,6 +207,7 @@ def strat_gen_t2(strat: Type[ChildrenLoadingStrategy]):
 
 test_load_children_for_many_using_loader_union = strat_gen_t2(UnionLoadingStrategy)
 test_load_children_for_many_using_loader_values = strat_gen_t2(ValuesLoadingStrategy)
+test_load_children_for_many_using_loader_unnest = strat_gen_t2(UnnestLoadingStrategy)
 
 
 def strat_gen_t3(strat: Type[ChildrenLoadingStrategy]):
@@ -245,4 +248,7 @@ test_load_children_for_many_using_loader_with_where_clause_union = strat_gen_t3(
 )
 test_load_children_for_many_using_loader_with_where_clause_values = strat_gen_t3(
     ValuesLoadingStrategy
+)
+test_load_children_for_many_using_loader_with_where_clause_unnest = strat_gen_t3(
+    UnnestLoadingStrategy
 )

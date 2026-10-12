@@ -87,6 +87,8 @@ class SQLAlchemyContext:
     # gets populated at each context initialization
     dataloader_container: "DataLoaderContainer"
     field_sub_selections: Dict[Any, Set[str]]
+    # (field, query node) pairs whose sub-selections are already collected
+    selection_nodes_seen: Set[Any]
     user: Optional[Any]
     loader_session: AsyncSession | None = None
     loader_session_lock: asyncio.Lock | None = None

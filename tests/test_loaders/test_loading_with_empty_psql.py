@@ -9,6 +9,7 @@ from strawberry_chemist.loaders import (
     UnionLoadingStrategy,
     RelationshipLoader,
     ValuesLoadingStrategy,
+    UnnestLoadingStrategy,
     ChildrenLoadingStrategy,
 )
 
@@ -100,6 +101,7 @@ def strat_gen_t3(strat: Type[ChildrenLoadingStrategy]):
 
 test_load_children_for_one_none_key_union = strat_gen_t3(UnionLoadingStrategy)
 test_load_children_for_one_none_key_values = strat_gen_t3(ValuesLoadingStrategy)
+test_load_children_for_one_none_key_unnest = strat_gen_t3(UnnestLoadingStrategy)
 
 
 def strat_gen_t4(strat: Type[ChildrenLoadingStrategy]):
@@ -132,3 +134,4 @@ def strat_gen_t4(strat: Type[ChildrenLoadingStrategy]):
 
 test_load_children_all_keys_none_union = strat_gen_t4(UnionLoadingStrategy)
 test_load_children_all_keys_none_values = strat_gen_t4(ValuesLoadingStrategy)
+test_load_children_all_keys_none_unnest = strat_gen_t4(UnnestLoadingStrategy)

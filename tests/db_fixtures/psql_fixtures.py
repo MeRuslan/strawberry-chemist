@@ -31,7 +31,12 @@ def psql_session(postgresql_in_docker):
     pg_db = postgresql_in_docker.dbname
 
     with DatabaseJanitor(
-        pg_user, pg_host, pg_port, pg_db, postgresql_in_docker.version, pg_password
+        user=pg_user,
+        host=pg_host,
+        port=pg_port,
+        dbname=pg_db,
+        version=postgresql_in_docker.version,
+        password=pg_password,
     ):
         connection_str = (
             f"postgresql+psycopg://{pg_user}:{pg_password}@{pg_host}:{pg_port}/{pg_db}"

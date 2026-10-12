@@ -38,6 +38,7 @@ class SelectionCacheExtension(SchemaExtension):
     def on_operation(self) -> Generator[None, None, None]:
         context: SQLAlchemyContext = self.execution_context.context
         context.field_sub_selections = defaultdict(set)
+        context.selection_nodes_seen = set()
         yield None
 
 
