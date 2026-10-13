@@ -21,6 +21,8 @@ from packaging.version import InvalidVersion, Version
 
 ROOT = Path(__file__).resolve().parent.parent
 TESTS_WORKFLOW = ROOT / ".github" / "workflows" / "tests.yml"
+# shared with the test tools, which need newer versions than our lower bound
+NOT_PINNED_IN_LOWEST_JOB = {"typing-extensions"}
 
 problems: list[str] = []
 
@@ -121,6 +123,8 @@ def main() -> int:
     pins = lowest_job_pins()
     for requirement in runtime:
         name = canonicalize_name(requirement.name)
+        if name in NOT_PINNED_IN_LOWEST_JOB:
+            continue
         bound = lower_bound(requirement)
         if pins.pop(name, None) != bound:
             error(

@@ -52,10 +52,11 @@ jobs:
         run: |
           with=()
           if [ "${{ matrix.deps }}" = lowest ]; then
-            # keep in sync with the lower bounds of [project.dependencies]
+            # keep in sync with the lower bounds of [project.dependencies];
+            # typing-extensions stays as locked, the test tools need a newer one
             with=(--with "strawberry-graphql==0.311.1" --with "graphql-core==3.2.6"
                   --with "sqlalchemy==2.0.41" --with "greenlet==3.2.2"
-                  --with "bidict==0.23.1" --with "typing-extensions==4.14.0")
+                  --with "bidict==0.23.1")
           fi
           uv run --locked --group dev "${with[@]}" python -c \
             "import sys, importlib.metadata as m; print(sys.version, *(f'{p}=={m.version(p)}' for p in ('strawberry-graphql', 'graphql-core')))"
