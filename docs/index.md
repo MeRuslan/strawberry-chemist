@@ -32,10 +32,12 @@ Simply define as if writing your GQL schema directly.
 ```python
 import strawberry_chemist as sc
 
+
 @sc.type(model=AuthorModel)
 class Author:
     name: str
     books: list[Book]
+
 
 @sc.type(model=BookModel)
 class Book:

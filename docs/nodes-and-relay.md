@@ -32,6 +32,7 @@ Composite IDs are supported.
 class Query:
     node = sc.node_field()
 
+
 sc.configure(
     default_pagination=sc.CursorPagination(default_limit=10, max_limit=20),
     default_relay_id_codec=sc.relay.IntRegistryCodec(registry={BookModel: 1}),
@@ -100,8 +101,7 @@ argument but operate on the loaded ORM object.
 
 ```python
 @sc.node_lookup(model=PostModel, id_name="post_id", node_param_name="post")
-async def rename_post(self, info, post, title: str) -> Post:
-    ...
+async def rename_post(self, info, post, title: str) -> Post: ...
 ```
 
 Primary example:

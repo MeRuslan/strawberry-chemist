@@ -9,6 +9,8 @@ from strawberry.annotation import StrawberryAnnotation
 
 from strawberry.types.base import StrawberryContainer
 from strawberry.types.field import StrawberryField
+from typing_extensions import Format
+from typing_extensions import get_annotations as get_own_annotations
 
 from strawberry_chemist.connection.base import SQLAlchemyBaseConnectionField
 from strawberry_chemist.fields.field import StrawberrySQLAlchemyField
@@ -35,10 +37,10 @@ def get_annotation_namespace(type_: type[Any]) -> dict[str, Any]:
 
 
 def get_class_annotations(type_: type[Any]) -> dict[str, Any]:
-    annotations = type_.__dict__.get("__annotations__")
-    if annotations is None:
-        return {}
-    return dict(annotations)
+    # the class's own annotations. Since Python 3.14 (PEP 649) they are evaluated
+    # lazily and aren't kept in the class __dict__; names that aren't defined yet
+    # come back as ForwardRefs instead of raising NameError
+    return dict(get_own_annotations(type_, format=Format.FORWARDREF))
 
 
 def unwrap_type(type_):

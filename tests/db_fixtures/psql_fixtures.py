@@ -35,7 +35,6 @@ def psql_session(postgresql_in_docker):
         host=pg_host,
         port=pg_port,
         dbname=pg_db,
-        version=postgresql_in_docker.version,
         password=pg_password,
     ):
         connection_str = (

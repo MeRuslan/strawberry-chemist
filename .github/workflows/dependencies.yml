@@ -1,0 +1,40 @@
+name: Dependencies
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+  schedule:
+    # weekly, to notice new releases and advisories between pushes
+    - cron: "0 6 * * 1"
+  workflow_dispatch:
+
+jobs:
+  check:
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Check out repository
+        uses: actions/checkout@v7
+
+      - name: Set up Python
+        uses: actions/setup-python@v7
+        with:
+          python-version: "3.12"
+
+      - name: Install uv
+        run: python -m pip install --upgrade uv
+
+      - name: uv.lock matches pyproject.toml
+        run: uv lock --check
+
+      - name: No known vulnerabilities in uv.lock
+        run: |
+          uv export --quiet --frozen --all-groups --no-emit-project -o "$RUNNER_TEMP/requirements.txt"
+          uvx pip-audit --vulnerability-service osv --disable-pip --progress-spinner off \
+            --requirement "$RUNNER_TEMP/requirements.txt"
+
+      # fails when a new release falls outside the allowed ranges or the lowest-deps
+      # job drifts from the lower bounds, warns when uv.lock lags behind
+      - name: Dependency ranges admit the newest releases
+        run: uv run --no-project --with packaging python scripts/check_dependencies.py

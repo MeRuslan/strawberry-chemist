@@ -23,6 +23,7 @@ from strawberry import UNSET
 from strawberry.annotation import StrawberryAnnotation
 from strawberry.types.arguments import StrawberryArgument
 
+from strawberry_chemist import utils
 from strawberry_chemist.querying import (
     QueryBuildContext,
     infer_model_from_query,
@@ -388,7 +389,7 @@ def filter(
     name: Optional[str] = None,
 ) -> Callable[[TFilterClass], TFilterClass]:
     def wrapper(cls: TFilterClass) -> TFilterClass:
-        annotations = dict(cls.__dict__.get("__annotations__", {}))
+        annotations = utils.get_class_annotations(cls)
         field_definitions: Dict[str, FilterFieldDefinition] = {}
 
         for field_name, annotation in list(annotations.items()):

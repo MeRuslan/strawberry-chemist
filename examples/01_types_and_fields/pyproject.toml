@@ -1,16 +1,16 @@
 [project]
 name = "strawberry-chemist-example-types-and-fields"
 version = "0.1.0"
-requires-python = ">=3.11,<3.15"
+requires-python = ">=3.11,<3.16"
 dependencies = [
-    "aiosqlite>=0.21.0",
-    "pytest>=9.0.2",
-    "pytest-asyncio>=1.1.0",
+    "aiosqlite>=0.22.1",
+    "pytest>=9.1.1",
+    "pytest-asyncio>=1.4.0",
     "sqlalchemy>=2.0.41",
-    "starlette>=0.47.3",
-    "strawberry-chemist==0.3.0",
-    "strawberry-graphql~=0.311.1",
-    "uvicorn>=0.34.0",
+    "starlette>=1.7.0",
+    "strawberry-chemist==0.6.8",
+    "strawberry-graphql>=0.311.1,<0.335",
+    "uvicorn>=0.54.0",
 ]
 
 [tool.pytest.ini_options]

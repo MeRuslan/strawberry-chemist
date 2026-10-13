@@ -4,6 +4,25 @@ All notable changes to this project will be documented in this file.
 
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
 
+## [0.6.8] - 2026-10-13
+
+### Fixed
+
+- On Python 3.14+ types, interfaces and filters lost their annotated fields:
+  annotations were read from the class `__dict__`, where PEP 649 no longer
+  keeps them. They are read with `typing_extensions.get_annotations` now.
+
+### Changed
+
+- Supports strawberry-graphql 0.311.1 up to 0.334.x and graphql-core 3.2 and
+  3.3; depends on typing-extensions>=4.14.0.
+- Tested on Python 3.11 to 3.15 and SQLAlchemy 2.0 and 2.1. CI runs the tests,
+  including the PostgreSQL ones, on the matrix Python (it used
+  `.python-version` before) with both the locked and the lowest allowed
+  dependencies; a Dependencies workflow checks the lockfile, known
+  vulnerabilities and that the dependency ranges admit the newest releases.
+- Refreshed `uv.lock`, the dev dependencies, the examples and the CI actions.
+
 ## [0.6.7] - 2026-10-12
 
 ### Changed

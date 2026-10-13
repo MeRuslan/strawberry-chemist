@@ -6,7 +6,7 @@
 pip install strawberry-chemist uvicorn aiosqlite
 ```
 
-Supported Python versions: `3.11` through `3.14`.
+Supported Python versions: `3.11` through `3.15`.
 
 ## Context contract
 
@@ -57,6 +57,7 @@ class BookModel(Base):
 
     id: Mapped[int] = mapped_column(Integer, primary_key=True)
     title: Mapped[str] = mapped_column(String(200))
+
 
 engine = create_async_engine(DATABASE_URL)
 session_factory = async_sessionmaker(engine, expire_on_commit=False)

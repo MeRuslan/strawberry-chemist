@@ -47,5 +47,5 @@ uv run --project examples/uv_smoke_project python examples/uv_smoke_project/smok
 Expected output:
 
 ```python
-{'book': {'title': 'The Hobbit'}}
+{"book": {"title": "The Hobbit"}}
 ```

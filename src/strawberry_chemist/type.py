@@ -287,7 +287,7 @@ def is_type_of(cls, obj, _info) -> bool:
 
 
 def process_type(cls, model, *args, **kwargs):
-    original_annotations = cls.__dict__.get("__annotations__", {})
+    original_annotations = utils.get_class_annotations(cls)
 
     container_type = StrawberrySQLAlchemyType(
         origin=cls,

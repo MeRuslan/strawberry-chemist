@@ -8,18 +8,40 @@ on:
 
 jobs:
   pytest:
+    name: pytest (python ${{ matrix.python-version }}, ${{ matrix.deps }} deps)
     runs-on: ubuntu-latest
     strategy:
       fail-fast: false
       matrix:
-        python-version: ["3.11", "3.12", "3.13", "3.14"]
+        python-version: ["3.11", "3.12", "3.13", "3.14", "3.15"]
+        # locked: the versions in uv.lock (the newest ones pyproject.toml allows);
+        # lowest: the oldest runtime dependencies that pyproject.toml allows
+        deps: ["locked", "lowest"]
+
+    services:
+      postgres:
+        image: postgres:17
+        env:
+          POSTGRES_USER: test
+          POSTGRES_PASSWORD: test
+        ports:
+          - 5432:5432
+        options: >-
+          --health-cmd pg_isready
+          --health-interval 5s
+          --health-timeout 5s
+          --health-retries 10
+
+    env:
+      # without it uv runs the tests on the interpreter from .python-version
+      UV_PYTHON: ${{ matrix.python-version }}
 
     steps:
       - name: Check out repository
-        uses: actions/checkout@v4
+        uses: actions/checkout@v7
 
       - name: Set up Python
-        uses: actions/setup-python@v5
+        uses: actions/setup-python@v7
         with:
           python-version: ${{ matrix.python-version }}
 
@@ -27,17 +49,30 @@ jobs:
         run: python -m pip install --upgrade uv
 
       - name: Run pytest
-        run: uv run --group dev pytest
+        run: |
+          with=()
+          if [ "${{ matrix.deps }}" = lowest ]; then
+            # keep in sync with the lower bounds of [project.dependencies]
+            with=(--with "strawberry-graphql==0.311.1" --with "graphql-core==3.2.6"
+                  --with "sqlalchemy==2.0.41" --with "greenlet==3.2.2"
+                  --with "bidict==0.23.1" --with "typing-extensions==4.14.0")
+          fi
+          uv run --locked --group dev "${with[@]}" python -c \
+            "import sys, importlib.metadata as m; print(sys.version, *(f'{p}=={m.version(p)}' for p in ('strawberry-graphql', 'graphql-core')))"
+          uv run --locked --group dev "${with[@]}" pytest -m "psql or not psql" \
+            --postgresql-host=localhost --postgresql-port=5432 \
+            --postgresql-user=test --postgresql-password=test \
+            --postgresql-dbname=chemist_tests
 
   mypy:
     runs-on: ubuntu-latest
 
     steps:
       - name: Check out repository
-        uses: actions/checkout@v4
+        uses: actions/checkout@v7
 
       - name: Set up Python
-        uses: actions/setup-python@v5
+        uses: actions/setup-python@v7
         with:
           python-version: "3.11"
 

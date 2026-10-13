@@ -4,7 +4,7 @@ build-backend = "hatchling.build"
 
 [project]
 name = "strawberry-chemist"
-version = "0.6.7"
+version = "0.6.8"
 description = "Strawberry GraphQL helpers for SQLAlchemy models."
 authors = [
     { name = "strawberry-chemist contributors" },
@@ -23,6 +23,7 @@ classifiers = [
     "Programming Language :: Python :: 3.12",
     "Programming Language :: Python :: 3.13",
     "Programming Language :: Python :: 3.14",
+    "Programming Language :: Python :: 3.15",
     "Topic :: Database",
     "Topic :: Internet :: WWW/HTTP",
     "Topic :: Software Development :: Libraries :: Python Modules",
@@ -30,9 +31,10 @@ classifiers = [
 dependencies = [
     "bidict>=0.23.1",
     "greenlet>=3.2.2",
-    "graphql-core>=3.2.6",
+    "graphql-core>=3.2.6,<3.4",
     "sqlalchemy>=2.0.41",
-    "strawberry-graphql~=0.311.1",
+    "strawberry-graphql>=0.311.1,<0.335",
+    "typing-extensions>=4.14.0",
 ]
 
 [project.urls]
@@ -44,21 +46,21 @@ Documentation = "https://meruslan.github.io/strawberry-chemist/"
 
 [dependency-groups]
 dev = [
-    "aiosqlite>=0.21.0",
-    "asyncpg>=0.30.0",
-    "build>=1.2.2.post1",
-    "httpx>=0.28.1",
+    "aiosqlite>=0.22.1",
+    "asyncpg>=0.32.0",
+    "build>=1.6.1",
+    "httpx2>=2.13.1",
     "mkdocs>=1.6.1",
-    "mypy>=1.15.0",
-    "pre-commit>=4.2.0",
-    "psycopg>=3.2.9",
-    "pytest>=9.0.2",
-    "pytest-asyncio>=1.1.0",
-    "pytest-postgresql>=7.0.2",
-    "ruff>=0.11.0",
-    "starlette>=0.47.3",
-    "uvicorn>=0.34.0",
-    "twine>=6.1.0",
+    "mypy>=2.4.0",
+    "pre-commit>=4.7.0",
+    "psycopg>=3.3.6",
+    "pytest>=9.1.1",
+    "pytest-asyncio>=1.4.0",
+    "pytest-postgresql>=9.1.1",
+    "ruff>=0.17.0",
+    "starlette>=1.7.0",
+    "uvicorn>=0.54.0",
+    "twine>=7.0.0",
 ]
 
 [tool.hatch.build.targets.wheel]

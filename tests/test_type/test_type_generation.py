@@ -15,6 +15,20 @@ from sqlalchemy.orm import (
 )
 
 import strawberry_chemist
+from strawberry_chemist import utils
+
+
+def test_class_annotations_are_the_class_own():
+    # on Python 3.14+ annotations are evaluated lazily (PEP 649) and are no longer
+    # stored in the class __dict__
+    class Parent:
+        inherited: int
+
+    class Child(Parent):
+        own: Optional[str]
+
+    assert utils.get_class_annotations(Child) == {"own": Optional[str]}
+    assert utils.get_class_annotations(Parent) == {"inherited": int}
 
 
 def test_raw_type():
