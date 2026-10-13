@@ -110,6 +110,11 @@ async def resolve_node(
     ]
     async with info.context.get_session() as session:
         node = await session.scalar(select(definition.model).where(and_(*conditions)))
+    # types sharing a model can split its rows with is_type_of, and the token doesn't tell
+    # them apart: cast only to a type that takes this row, otherwise the schema picks one
+    is_type_of = getattr(definition.graphql_type, "is_type_of", None)
+    if node is None or (is_type_of is not None and not is_type_of(node, info)):
+        return node
     return strawberry.cast(definition.graphql_type, node)
 
 

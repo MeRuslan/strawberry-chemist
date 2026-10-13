@@ -4,6 +4,17 @@ All notable changes to this project will be documented in this file.
 
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
 
+## [0.6.9] - 2026-10-13
+
+### Fixed
+
+- `node(id:)` failed with "Expected value of type 'X' but got: <Model instance>"
+  for models that several node types split with `is_type_of` (say, posts and
+  reviews on one table). `resolve_node` cast the row to the first type the
+  token matched, and strawberry-graphql 0.334 resolves interfaces by
+  `strawberry.cast`, where 0.311 asked `is_type_of`. The row is cast only to a
+  type that takes it now; otherwise the schema picks one by `is_type_of`.
+
 ## [0.6.8] - 2026-10-13
 
 ### Fixed
