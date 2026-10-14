@@ -4,6 +4,20 @@ All notable changes to this project will be documented in this file.
 
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
 
+## [0.7.0] - 2026-10-14
+
+### Added
+
+- Query cost limits: `sc.QueryCostLimiter(max_objects=..., max_fields=...)`
+  rejects an operation whose worst case is over a limit before anything
+  resolves (`QUERY_COST_EXCEEDED` in the error's extensions), or only logs it
+  with `dry_run=True`. The worst case comes from `sc.estimate_query_cost(...)`:
+  connection pages as large as their arguments ask, capped by their pagination
+  policy, multiply what's selected under them. Fields Chemist can't size get
+  `metadata=sc.cost(list_size=...)` or `metadata=sc.cost(pagination=...)`.
+- `CursorPagination.page_size(arguments)` and `OffsetPagination.page_size(arguments)`:
+  the page size for raw GraphQL argument values, capped like `paginate_query`.
+
 ## [0.6.9] - 2026-10-13
 
 ### Fixed

@@ -1,5 +1,6 @@
 from __future__ import annotations
 
+from collections.abc import Mapping
 from typing import Any, Generic, TypeAlias
 
 import strawberry
@@ -92,6 +93,24 @@ class OffsetPagination:
 
     def extract_pagination_kwargs(self, kwargs: dict[str, int]) -> tuple[int, int]:
         return kwargs.get("limit", self.default_limit), kwargs.get("offset", 0)
+
+    def page_size(self, arguments: Mapping[str, Any]) -> int:
+        """How many items a page holds for these raw GraphQL argument values,
+        capped the way `paginate_query` caps them. A value that isn't known
+        (not an int, say a variable left unresolved) counts as `max_limit`."""
+        if self.nested:
+            page = arguments.get(self.graphql_name)
+            if page is None:
+                limit = self.default_limit
+            elif isinstance(page, Mapping):
+                limit = page.get("limit", LimitOffsetPaginationInput.limit)
+            else:
+                limit = None
+        else:
+            limit = arguments.get("limit", self.default_limit)
+        if not isinstance(limit, int) or isinstance(limit, bool):
+            return self.max_limit
+        return max(min(limit, self.max_limit), 1)
 
     def normalize_page(self, page: OffsetPageInput) -> tuple[int, int]:
         if page is None:

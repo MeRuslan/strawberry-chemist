@@ -14,5 +14,6 @@ nav:
   - Filters And Ordering: filters-and-ordering.md
   - Nodes And Relay IDs: nodes-and-relay.md
   - Context And Extensions: context-and-extensions.md
+  - Query Cost Limits: query-cost.md
   - Examples: examples.md
   - API Surface: api-surface.md

@@ -1,6 +1,7 @@
 from __future__ import annotations
 
 import base64
+from collections.abc import Mapping
 from contextvars import ContextVar
 from typing import Any, Generic, Optional, TypeAlias
 
@@ -127,6 +128,26 @@ class CursorPagination:
         self, kwargs: dict[str, Any]
     ) -> tuple[int, Optional[str]]:
         return kwargs.get("first", self.default_limit), kwargs.get("after")
+
+    def page_size(self, arguments: Mapping[str, Any]) -> int:
+        """How many nodes a page holds for these raw GraphQL argument values,
+        capped the way `paginate_query` caps them. A value that isn't known
+        (not an int, say a variable left unresolved) counts as `max_limit`."""
+        if self.nested:
+            page = arguments.get(self.graphql_name)
+            if page is None:
+                first = self.default_limit
+            elif isinstance(page, Mapping):
+                first = page.get("first", CursorPaginationInput.first)
+                if isinstance(first, int):
+                    first = min(first, ABSOLUTE_MAX_LIMIT)
+            else:
+                first = None
+        else:
+            first = arguments.get("first", self.default_limit)
+        if not isinstance(first, int) or isinstance(first, bool):
+            return self.max_limit
+        return max(min(first, self.max_limit), 1)
 
     def cache_key(self, page: CursorPageInput) -> tuple[int, Optional[str]]:
         return self.normalize_page(page)

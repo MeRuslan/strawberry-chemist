@@ -32,6 +32,7 @@ Two practical properties are worth calling out:
 | Resolver node injection | `sc.node_lookup` | Load an ORM object from a node ID into a query or mutation resolver | [`07_node_lookup_and_permissions`](https://github.com/MeRuslan/strawberry-chemist/tree/main/examples/07_node_lookup_and_permissions) |
 | Resolver contracts | `@sc.field(select=...)`, `sc.relationship`, `sc.connection`, `sc.node_lookup` | Hide Chemist-injected runtime params and expose the rest as GraphQL args | [`09_resolver_argument_contracts`](https://github.com/MeRuslan/strawberry-chemist/tree/main/examples/09_resolver_argument_contracts) |
 | Schema integration | `sc.extensions()` | Enable dataloaders and selection caching for Chemist-managed fields | [`05_context_and_extensions`](https://github.com/MeRuslan/strawberry-chemist/tree/main/examples/05_context_and_extensions) |
+| Query cost limits | `sc.QueryCostLimiter`, `sc.estimate_query_cost`, `sc.cost` | Reject operations whose worst case is too many objects or fields, before they run | [Query Cost Limits](query-cost.md) |
 
 ## Practical rule of thumb
 
