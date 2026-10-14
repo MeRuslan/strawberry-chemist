@@ -83,5 +83,18 @@ class Query:
     def search(self) -> List[Union[AuthorNode, BookNode]]:
         raise AssertionError("never resolved in these tests")
 
+    @sc.node_lookup(
+        model=Author,
+        node_param_name="author",
+        metadata=sc.cost(pagination=sc.CursorPagination(max_limit=5, nested=True)),
+    )
+    async def author_books(
+        self,
+        info: strawberry.Info,
+        author: Optional[Author],
+        pagination: Optional[CursorPaginationInput] = None,
+    ) -> sc.Connection[BookNode]:
+        raise AssertionError("never resolved in these tests")
+
 
 schema = strawberry.Schema(query=Query, extensions=sc.extensions())

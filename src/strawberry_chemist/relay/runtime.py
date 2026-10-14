@@ -3,7 +3,7 @@ from __future__ import annotations
 import inspect as pyinspect
 import operator
 from functools import reduce, wraps
-from typing import Annotated, Any, Optional, Sequence, Type
+from typing import Annotated, Any, Mapping, Optional, Sequence, Type
 
 import strawberry
 from sqlalchemy import and_, select
@@ -155,6 +155,7 @@ def node_lookup(
     description: Optional[str] = None,
     deprecation_reason: Optional[str] = None,
     directives: Sequence[object] = (),
+    metadata: Optional[Mapping[str, Any]] = None,
 ):
     def decorator(resolver: Any):
         original_signature = pyinspect.signature(resolver)
@@ -244,6 +245,7 @@ def node_lookup(
             permission_classes=list(permission_classes or ()),
             deprecation_reason=deprecation_reason,
             directives=tuple(directives),
+            metadata=metadata,
         )
 
     return decorator

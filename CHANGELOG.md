@@ -17,6 +17,7 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
   `metadata=sc.cost(list_size=...)` or `metadata=sc.cost(pagination=...)`.
 - `CursorPagination.page_size(arguments)` and `OffsetPagination.page_size(arguments)`:
   the page size for raw GraphQL argument values, capped like `paginate_query`.
+- `sc.node_lookup(...)` takes `metadata=` for the field it makes.
 
 ## [0.6.9] - 2026-10-13
 

@@ -129,6 +129,15 @@ def test_hints_size_plain_lists_and_resolver_connections():
     assert cost.objects == featured + recent + authors
 
 
+def test_node_lookup_fields_take_hints():
+    cost = estimate(
+        '{ authorBooks(id: "x", pagination: {first: 3}) { edges { node { title } } } }',
+        {},
+    )
+
+    assert cost.objects == 1 + 3 * 2
+
+
 def test_default_list_size_applies_to_lists_without_hints():
     query = "{ authors(pagination: {first: 1}) { edges { node { labels { name } } } } }"
 

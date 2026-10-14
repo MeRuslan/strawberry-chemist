@@ -115,6 +115,7 @@ async def activity(
 The page size multiplies the list fields of the returned connection (`edges`);
 on a field that returns a list itself, it's the length of that list.
 
-`sc.relationship(...)` and `sc.connection(...)` take `metadata=` too. A custom
+`sc.relationship(...)`, `sc.connection(...)` and `sc.node_lookup(...)` take
+`metadata=` too. A custom
 pagination policy is sized by its `page_size(arguments)` method when it has one
 (`CursorPagination` and `OffsetPagination` do), by its `max_limit` otherwise.
