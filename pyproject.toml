@@ -33,7 +33,7 @@ dependencies = [
     "greenlet>=3.2.2",
     "graphql-core>=3.2.6,<3.4",
     "sqlalchemy>=2.0.41",
-    "strawberry-graphql>=0.311.1,<0.335",
+    "strawberry-graphql>=0.311.1,<0.400",
     "typing-extensions>=4.14.0",
 ]
 

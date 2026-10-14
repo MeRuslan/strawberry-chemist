@@ -19,6 +19,12 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
   the page size for raw GraphQL argument values, capped like `paginate_query`.
 - `sc.node_lookup(...)` takes `metadata=` for the field it makes.
 
+### Changed
+
+- Allows strawberry-graphql up to 0.399.x instead of 0.334.x: a new minor
+  comes out every few days. Tested on 0.335.0, which `uv.lock` now has (and
+  starlette 1.8.0).
+
 ## [0.6.9] - 2026-10-13
 
 ### Fixed
