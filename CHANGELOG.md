@@ -4,6 +4,15 @@ All notable changes to this project will be documented in this file.
 
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
 
+## [0.7.1] - 2026-11-20
+
+### Fixed
+
+- Relationship fields with a resolver (`@sc.relationship` on a method) lost
+  their relationship on strawberry-graphql 0.337 and later, which drops the
+  annotations of such fields once their dataclass exists: resolving them
+  failed. Tested on 0.341.2, which `uv.lock` now has.
+
 ## [0.7.0] - 2026-10-14
 
 ### Added

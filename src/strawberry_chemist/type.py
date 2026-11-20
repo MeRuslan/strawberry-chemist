@@ -257,6 +257,20 @@ def get_fields(container_type: StrawberrySQLAlchemyType) -> list[StrawberryField
         field = get_field(container_type, field_name, field_annotation)
         fields[field_name] = field
 
+    # fields with a resolver: Strawberry annotates them only while it creates
+    # the dataclass, so they're among its fields but not in the annotations
+    for dataclass_field in dataclasses.fields(container_type.origin):
+        if dataclass_field.name in fields or not isinstance(
+            dataclass_field, StrawberrySQLAlchemyField
+        ):
+            continue
+        annotation = dataclass_field.type_annotation
+        if annotation is None and dataclass_field.base_resolver is not None:
+            annotation = dataclass_field.base_resolver.type_annotation
+        fields[dataclass_field.name] = get_field(
+            container_type, dataclass_field.name, annotation
+        )
+
     # collect non-annotated fields defined by decorators
     for field_name in dir(container_type.origin):
         if field_name in fields:
